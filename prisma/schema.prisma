@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ManagementCompany {
+  id         String     @id @default(uuid())
+  name       String     @unique
+  website    String?
+  phone      String?
+  notes      String?
+  properties Property[]
+  contacts   Contact[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Property {
+  id                  String             @id @default(uuid())
+  code                String?            @unique
+  name                String
+  leadSource          String?
+  propertyType        String?
+  segment             String?
+  addressLine1        String?
+  city                String?
+  county              String?
+  state               String?
+  zipCode             String?
+  formattedAddress    String?
+  latitude            Decimal?
+  longitude           Decimal?
+  managementCompanyId String?
+  managementCompany   ManagementCompany? @relation(fields: [managementCompanyId], references: [id])
+  sharepointFolderId  String?
+  sharepointFolderUrl String?
+  contacts            PropertyContact[]
+  waterBodies         WaterBody[]
+  salesActivities     SalesActivity[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  legacySource        String?
+  legacyRow           Int?
+  maintenanceChiefInfo String?
+  followUpNotes        String?
+  deletedAt            DateTime?
+}
+
+model Contact {
+  id                  String             @id @default(uuid())
+  firstName           String?
+  lastName            String?
+  email               String?
+  phone               String?
+  managementCompanyId String?
+  managementCompany   ManagementCompany? @relation(fields: [managementCompanyId], references: [id])
+  properties          PropertyContact[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model PropertyContact {
+  id         String  @id @default(uuid())
+  propertyId String
+  contactId  String
+  role       String?
+  isPrimary  Boolean @default(false)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, contactId, role])
+}
+
+model WaterBody {
+  id         String  @id @default(uuid())
+  propertyId String
+  name       String
+  type       String
+  active     Boolean @default(true)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SalesActivity {
+  id         String   @id @default(uuid())
+  propertyId String
+  type       String
+  occurredAt DateTime
+  notes      String?
+  status     String   @default("CREATED")
+  sentAt     DateTime?
+  approvedAt DateTime?
+  rejectedAt DateTime?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
