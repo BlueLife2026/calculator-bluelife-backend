@@ -7,9 +7,7 @@ async function bootstrap() {
 
   // ponytail: sin FRONTEND_URL refleja cualquier origen (comportamiento previo).
   // En produccion la variable es obligatoria.
-  app.enableCors({
-    origin: process.env.FRONTEND_URL ?? true,
-  });
+  app.enableCors();
 
   app.useGlobalPipes(
     new ValidationPipe({
