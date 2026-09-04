@@ -80,6 +80,7 @@ model WaterBody {
   propertyId String
   name       String
   type       String
+  size       String?
   active     Boolean @default(true)
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
