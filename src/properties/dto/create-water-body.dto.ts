@@ -29,15 +29,6 @@ export class CreateWaterBodyDto {
   type: string;
 
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toUpperCase()
-      : value,
-  )
-  @IsIn(['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE'])
-  size?: string;
-
-  @IsOptional()
   @IsBoolean()
   active?: boolean;
 }
