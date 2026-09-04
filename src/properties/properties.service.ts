@@ -87,7 +87,13 @@ export class PropertiesService {
   }
 
   async create(data: CreatePropertyDto) {
-    const { contacts, waterBodies, ...propertyData } = data;
+    const {
+      contacts,
+      waterBodies,
+      managementCompanyName,
+      ...propertyData
+    } = data;
+    const normalizedManagementCompanyName = managementCompanyName?.trim();
     const normalizedEmails = contacts.map((contact) =>
       contact.email.trim().toLowerCase(),
     );
@@ -123,6 +129,16 @@ export class PropertiesService {
     const property = await this.prisma.property.create({
       data: {
         ...propertyData,
+        ...(normalizedManagementCompanyName
+          ? {
+              managementCompany: {
+                connectOrCreate: {
+                  where: { name: normalizedManagementCompanyName },
+                  create: { name: normalizedManagementCompanyName },
+                },
+              },
+            }
+          : {}),
         contacts: {
           create: contacts.map((contact, index) => ({
             role: contact.role,
@@ -143,6 +159,7 @@ export class PropertiesService {
                 create: waterBodies.map((waterBody) => ({
                   name: waterBody.name.trim(),
                   type: waterBody.type,
+                  size: waterBody.size ?? null,
                   active: waterBody.active ?? true,
                 })),
               },
@@ -321,7 +338,13 @@ export class PropertiesService {
     id: string,
     data: UpdatePropertyDto,
   ) {
-    const { contacts, waterBodies, ...propertyData } = data;
+    const {
+      contacts,
+      waterBodies,
+      managementCompanyName,
+      ...propertyData
+    } = data;
+    const normalizedManagementCompanyName = managementCompanyName?.trim();
     const existing =
       await this.prisma.property.findUnique({
         where: {
@@ -342,7 +365,21 @@ export class PropertiesService {
     if (!contacts) {
       return this.prisma.property.update({
         where: { id },
-        data: propertyData,
+        data: {
+          ...propertyData,
+          ...(managementCompanyName !== undefined
+            ? normalizedManagementCompanyName
+              ? {
+                  managementCompany: {
+                    connectOrCreate: {
+                      where: { name: normalizedManagementCompanyName },
+                      create: { name: normalizedManagementCompanyName },
+                    },
+                  },
+                }
+              : { managementCompany: { disconnect: true } }
+            : {}),
+        },
       });
     }
 
@@ -387,7 +424,21 @@ export class PropertiesService {
     await this.prisma.$transaction(async (tx) => {
       await tx.property.update({
         where: { id },
-        data: propertyData,
+        data: {
+          ...propertyData,
+          ...(managementCompanyName !== undefined
+            ? normalizedManagementCompanyName
+              ? {
+                  managementCompany: {
+                    connectOrCreate: {
+                      where: { name: normalizedManagementCompanyName },
+                      create: { name: normalizedManagementCompanyName },
+                    },
+                  },
+                }
+              : { managementCompany: { disconnect: true } }
+            : {}),
+        },
       });
 
       await tx.propertyContact.deleteMany({
@@ -440,6 +491,7 @@ export class PropertiesService {
               propertyId: id,
               name: waterBody.name.trim(),
               type: waterBody.type,
+              size: waterBody.size ?? null,
               active: waterBody.active ?? true,
             })),
           });

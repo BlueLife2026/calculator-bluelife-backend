@@ -89,6 +89,10 @@ export class CreatePropertyDto {
 
   @IsOptional()
   @IsString()
+  managementCompanyName?: string;
+
+  @IsOptional()
+  @IsString()
   addressLine1?: string;
 
   @IsOptional()
