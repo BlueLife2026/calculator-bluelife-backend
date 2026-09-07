@@ -192,28 +192,35 @@ export class PropertiesService {
   async provisionSharePointFolder(id: string) {
     const property = await this.prisma.property.findFirst({
       where: { id, deletedAt: null },
+      include: { waterBodies: true },
     });
 
     if (!property) {
       throw new NotFoundException(`No se encontró la propiedad con id ${id}`);
     }
 
-    if (property.sharepointFolderId && property.sharepointFolderUrl) {
-      return this.findOne(id);
-    }
-
     try {
-      const folder = await this.sharePoint.createPropertyFolder(
-        property.id,
-        property.name,
+      let propertyFolderId = property.sharepointFolderId;
+
+      if (!propertyFolderId || !property.sharepointFolderUrl) {
+        const folder = await this.sharePoint.createPropertyFolder(
+          property.id,
+          property.name,
+        );
+        propertyFolderId = folder.id;
+        await this.prisma.property.update({
+          where: { id },
+          data: {
+            sharepointFolderId: folder.id,
+            sharepointFolderUrl: folder.webUrl,
+          },
+        });
+      }
+
+      await this.sharePoint.ensureWaterBodyFolders(
+        propertyFolderId,
+        property.waterBodies.map((waterBody) => waterBody.name),
       );
-      await this.prisma.property.update({
-        where: { id },
-        data: {
-          sharepointFolderId: folder.id,
-          sharepointFolderUrl: folder.webUrl,
-        },
-      });
       return this.findOne(id);
     } catch (error) {
       this.logger.error(
@@ -498,6 +505,17 @@ export class PropertiesService {
         }
       }
     });
+
+    if (waterBodies !== undefined) {
+      try {
+        await this.provisionSharePointFolder(id);
+      } catch (error) {
+        this.logger.error(
+          `SharePoint water body folders could not be synchronized for property ${id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
 
     return this.findOne(id);
   }

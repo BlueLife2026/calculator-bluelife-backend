@@ -8,6 +8,10 @@ type GraphFolder = {
   folder?: unknown;
 };
 
+type GraphChildrenResponse = {
+  value: GraphFolder[];
+};
+
 @Injectable()
 export class SharePointService {
   private accessToken: string | null = null;
@@ -88,6 +92,14 @@ export class SharePointService {
       .join('/');
   }
 
+  private sanitizeFolderName(value: string, fallback: string) {
+    return value
+      .replace(/["*:<>?/\\|#%]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/[. ]+$/g, '') || fallback;
+  }
+
   private async resolveDrive() {
     if (this.siteId && this.driveId) {
       return { siteId: this.siteId, driveId: this.driveId };
@@ -119,11 +131,7 @@ export class SharePointService {
       .get<string>('SHAREPOINT_PARENT_FOLDER')
       ?.trim()
       .replace(/^\/+|\/+$/g, '');
-    const safeName = propertyName
-      .replace(/["*:<>?/\\|#%]/g, '-')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/[. ]+$/g, '') || 'Property';
+    const safeName = this.sanitizeFolderName(propertyName, 'Property');
     const sku = propertyId.slice(0, 7).toLowerCase();
     const folderName = `${safeName} - (${sku})`;
     const fullPath = [parentPath, folderName].filter(Boolean).join('/');
@@ -152,6 +160,52 @@ export class SharePointService {
           '@microsoft.graph.conflictBehavior': 'fail',
         }),
       },
+    );
+  }
+
+  async ensureWaterBodyFolders(
+    propertyFolderId: string,
+    waterBodyNames: string[],
+  ) {
+    if (waterBodyNames.length === 0) return [];
+
+    const { driveId } = await this.resolveDrive();
+    const requestedNames = Array.from(
+      new Set(
+        waterBodyNames
+          .map((name) => this.sanitizeFolderName(name, 'Water Body'))
+          .filter(Boolean),
+      ),
+    );
+    const children = await this.graph<GraphChildrenResponse>(
+      `/drives/${driveId}/items/${propertyFolderId}/children?$select=id,name,webUrl,folder`,
+    );
+    const foldersByName = new Map(
+      children.value
+        .filter((item) => Boolean(item.folder))
+        .map((item) => [item.name.toLocaleLowerCase(), item]),
+    );
+
+    for (const folderName of requestedNames) {
+      const key = folderName.toLocaleLowerCase();
+      if (foldersByName.has(key)) continue;
+
+      const folder = await this.graph<GraphFolder>(
+        `/drives/${driveId}/items/${propertyFolderId}/children`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            name: folderName,
+            folder: {},
+            '@microsoft.graph.conflictBehavior': 'fail',
+          }),
+        },
+      );
+      foldersByName.set(key, folder);
+    }
+
+    return requestedNames.map(
+      (folderName) => foldersByName.get(folderName.toLocaleLowerCase()),
     );
   }
 }
