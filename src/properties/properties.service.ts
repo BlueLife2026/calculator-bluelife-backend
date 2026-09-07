@@ -327,7 +327,7 @@ export class PropertiesService {
   async updateSalesActivityStatus(
     propertyId: string,
     activityId: string,
-    status: 'CREATED' | 'SENT' | 'APPROVED' | 'REJECTED',
+    status: 'CREATED' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED',
   ) {
     const activity = await this.prisma.salesActivity.findFirst({
       where: { id: activityId, propertyId },
@@ -355,6 +355,13 @@ export class PropertiesService {
           ? {
               rejectedAt: activity.rejectedAt ?? now,
               approvedAt: null,
+              sentAt: activity.sentAt ?? now,
+            }
+          : {}),
+        ...(status === 'EXPIRED'
+          ? {
+              approvedAt: null,
+              rejectedAt: null,
               sentAt: activity.sentAt ?? now,
             }
           : {}),
