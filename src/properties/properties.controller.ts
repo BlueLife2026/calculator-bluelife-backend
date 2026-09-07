@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,7 +7,10 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -52,6 +56,38 @@ export class PropertiesController {
   @Post(':id/sharepoint-folder')
   provisionSharePointFolder(@Param('id') id: string) {
     return this.propertiesService.provisionSharePointFolder(id);
+  }
+
+  @Post(':propertyId/water-bodies/:waterBodyId/photos')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  uploadWaterBodyPhoto(
+    @Param('propertyId') propertyId: string,
+    @Param('waterBodyId') waterBodyId: string,
+    @UploadedFile()
+    file:
+      | {
+          buffer: Buffer;
+          originalname: string;
+          mimetype: string;
+        }
+      | undefined,
+  ) {
+    if (!file) {
+      throw new BadRequestException('An image file is required.');
+    }
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed.');
+    }
+
+    return this.propertiesService.uploadWaterBodyPhoto(
+      propertyId,
+      waterBodyId,
+      file,
+    );
   }
 
   @Post(':id/sales-activities')

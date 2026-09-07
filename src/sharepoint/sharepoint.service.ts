@@ -208,4 +208,35 @@ export class SharePointService {
       (folderName) => foldersByName.get(folderName.toLocaleLowerCase()),
     );
   }
+
+  async uploadWaterBodyPhoto(
+    waterBodyFolderId: string,
+    originalFileName: string,
+    content: Buffer,
+    contentType: string,
+  ) {
+    const { driveId } = await this.resolveDrive();
+    const safeFileName = this.sanitizeFolderName(
+      originalFileName.split(/[\\/]/).pop() ?? '',
+      'photo',
+    );
+    const uploadName = `${Date.now()}-${safeFileName}`;
+    const response = await fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${waterBodyFolderId}:/${encodeURIComponent(uploadName)}:/content`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${await this.getAccessToken()}`,
+          'Content-Type': contentType,
+        },
+        body: content as unknown as BodyInit,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Microsoft Graph upload failed (${response.status})`);
+    }
+
+    return (await response.json()) as GraphFolder;
+  }
 }

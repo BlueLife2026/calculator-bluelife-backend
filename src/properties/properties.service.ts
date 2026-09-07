@@ -13,6 +13,12 @@ import { SharePointService } from '../sharepoint/sharepoint.service';
 import { CreateSalesActivityDto } from './dto/create-sales-activity.dto';
 import { UpdateSalesActivityDto } from './dto/update-sales-activity.dto';
 
+type UploadedImageFile = {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+};
+
 @Injectable()
 export class PropertiesService {
   private readonly logger = new Logger(PropertiesService.name);
@@ -229,6 +235,67 @@ export class PropertiesService {
       );
       throw new BadGatewayException(
         'The SharePoint folder could not be created.',
+      );
+    }
+  }
+
+  async uploadWaterBodyPhoto(
+    propertyId: string,
+    waterBodyId: string,
+    file: UploadedImageFile,
+  ) {
+    const property = await this.prisma.property.findFirst({
+      where: { id: propertyId, deletedAt: null },
+      include: { waterBodies: true },
+    });
+    const waterBody = property?.waterBodies.find(
+      (item) => item.id === waterBodyId,
+    );
+
+    if (!property || !waterBody) {
+      throw new NotFoundException(
+        'The water body does not belong to this property.',
+      );
+    }
+
+    try {
+      let propertyFolderId = property.sharepointFolderId;
+
+      if (!propertyFolderId || !property.sharepointFolderUrl) {
+        await this.provisionSharePointFolder(propertyId);
+        const refreshedProperty = await this.prisma.property.findUnique({
+          where: { id: propertyId },
+        });
+        propertyFolderId = refreshedProperty?.sharepointFolderId ?? null;
+      }
+
+      if (!propertyFolderId) {
+        throw new Error('The property SharePoint folder is not available.');
+      }
+
+      const [waterBodyFolder] =
+        await this.sharePoint.ensureWaterBodyFolders(
+          propertyFolderId,
+          [waterBody.name],
+        );
+
+      if (!waterBodyFolder) {
+        throw new Error('The water body SharePoint folder is not available.');
+      }
+
+      return await this.sharePoint.uploadWaterBodyPhoto(
+        waterBodyFolder.id,
+        file.originalname,
+        file.buffer,
+        file.mimetype,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Water body photo upload failed for property ${propertyId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadGatewayException(
+        'The water body photo could not be uploaded.',
       );
     }
   }
