@@ -343,7 +343,7 @@ export class PropertiesService {
       data: {
         status,
         ...(status === 'CREATED' ? { sentAt: null, approvedAt: null, rejectedAt: null } : {}),
-        ...(status === 'SENT' && !activity.sentAt ? { sentAt: now } : {}),
+        ...(status === 'SENT' ? { sentAt: now, approvedAt: null, rejectedAt: null } : {}),
         ...(status === 'APPROVED'
           ? {
               approvedAt: activity.approvedAt ?? now,
