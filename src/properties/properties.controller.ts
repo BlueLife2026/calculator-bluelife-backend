@@ -16,6 +16,7 @@ import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { CreateSalesActivityDto } from './dto/create-sales-activity.dto';
+import { CreateProposalFollowUpDto } from './dto/create-proposal-follow-up.dto';
 import { UpdateSalesActivityStatusDto } from './dto/update-sales-activity-status.dto';
 import { UpdateSalesActivityDto } from './dto/update-sales-activity.dto';
 
@@ -108,6 +109,19 @@ export class PropertiesController {
       propertyId,
       activityId,
       data.status,
+    );
+  }
+
+  @Post(':propertyId/sales-activities/:activityId/follow-ups')
+  createProposalFollowUp(
+    @Param('propertyId') propertyId: string,
+    @Param('activityId') activityId: string,
+    @Body() data: CreateProposalFollowUpDto,
+  ) {
+    return this.propertiesService.createProposalFollowUp(
+      propertyId,
+      activityId,
+      data,
     );
   }
 

@@ -11,6 +11,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { SharePointService } from '../sharepoint/sharepoint.service';
 import { CreateSalesActivityDto } from './dto/create-sales-activity.dto';
+import { CreateProposalFollowUpDto } from './dto/create-proposal-follow-up.dto';
 import { UpdateSalesActivityDto } from './dto/update-sales-activity.dto';
 
 type UploadedImageFile = {
@@ -52,6 +53,13 @@ export class PropertiesService {
           orderBy: {
             occurredAt: 'desc',
           },
+          include: {
+            followUps: {
+              orderBy: {
+                occurredAt: 'desc',
+              },
+            },
+          },
         },
       },
     });
@@ -78,6 +86,13 @@ export class PropertiesService {
           salesActivities: {
             orderBy: {
               occurredAt: 'desc',
+            },
+            include: {
+              followUps: {
+                orderBy: {
+                  occurredAt: 'desc',
+                },
+              },
             },
           },
         },
@@ -180,7 +195,15 @@ export class PropertiesService {
           },
         },
         waterBodies: true,
-        salesActivities: true,
+        salesActivities: {
+          include: {
+            followUps: {
+              orderBy: {
+                occurredAt: 'desc',
+              },
+            },
+          },
+        },
       },
     });
 
@@ -366,6 +389,56 @@ export class PropertiesService {
             }
           : {}),
       },
+      include: {
+        followUps: {
+          orderBy: {
+            occurredAt: 'desc',
+          },
+        },
+      },
+    });
+  }
+
+  async createProposalFollowUp(
+    propertyId: string,
+    activityId: string,
+    data: CreateProposalFollowUpDto,
+  ) {
+    const activity = await this.prisma.salesActivity.findFirst({
+      where: { id: activityId, propertyId },
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Proposal not found for this property.');
+    }
+
+    const now = new Date();
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.proposalFollowUp.create({
+        data: {
+          salesActivityId: activityId,
+          occurredAt: now,
+          notes: data.notes?.trim() || null,
+          channel: data.channel ?? 'EMAIL',
+        },
+      });
+
+      return transaction.salesActivity.update({
+        where: { id: activityId },
+        data: {
+          status: 'SENT',
+          sentAt: now,
+          approvedAt: null,
+          rejectedAt: null,
+        },
+        include: {
+          followUps: {
+            orderBy: {
+              occurredAt: 'desc',
+            },
+          },
+        },
+      });
     });
   }
 
@@ -383,6 +456,13 @@ export class PropertiesService {
     return this.prisma.salesActivity.update({
       where: { id: activityId },
       data: { notes: data.notes },
+      include: {
+        followUps: {
+          orderBy: {
+            occurredAt: 'desc',
+          },
+        },
+      },
     });
   }
 
@@ -410,7 +490,15 @@ export class PropertiesService {
           include: { contact: true },
         },
         waterBodies: true,
-        salesActivities: true,
+        salesActivities: {
+          include: {
+            followUps: {
+              orderBy: {
+                occurredAt: 'desc',
+              },
+            },
+          },
+        },
       },
     });
   }

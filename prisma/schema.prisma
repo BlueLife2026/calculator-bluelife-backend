@@ -99,8 +99,21 @@ model SalesActivity {
   sentAt     DateTime?
   approvedAt DateTime?
   rejectedAt DateTime?
+  followUps  ProposalFollowUp[]
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+model ProposalFollowUp {
+  id             String       @id @default(uuid())
+  salesActivityId String
+  occurredAt     DateTime     @default(now())
+  notes          String?
+  channel        String       @default("EMAIL")
+
+  salesActivity SalesActivity @relation(fields: [salesActivityId], references: [id], onDelete: Cascade)
+
+  @@index([salesActivityId, occurredAt])
 }
