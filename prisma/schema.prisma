@@ -99,6 +99,7 @@ model SalesActivity {
   sentAt     DateTime?
   approvedAt DateTime?
   rejectedAt DateTime?
+  proposalData Json?
   followUps  ProposalFollowUp[]
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)

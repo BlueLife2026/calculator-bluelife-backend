@@ -1,4 +1,4 @@
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateSalesActivityDto {
   @IsIn(['PROPOSAL'])
@@ -6,4 +6,8 @@ export class CreateSalesActivityDto {
 
   @IsString()
   notes: string;
+
+  @IsOptional()
+  @IsObject()
+  proposalData?: Record<string, unknown>;
 }

@@ -5,6 +5,7 @@ import {
   BadGatewayException,
   Logger,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -342,6 +343,7 @@ export class PropertiesService {
         propertyId,
         type: data.type,
         notes: data.notes,
+        proposalData: data.proposalData as Prisma.InputJsonObject | undefined,
         occurredAt: new Date(),
       },
     });
