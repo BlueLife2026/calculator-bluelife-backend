@@ -447,7 +447,7 @@ export class PropertiesService {
         error instanceof Error ? error.stack : undefined,
       );
       throw new BadGatewayException(
-        'The proposal PDF could not be sent by email.',
+        'The proposal email could not be sent.',
       );
     }
   }
