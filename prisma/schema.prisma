@@ -46,7 +46,12 @@ model Property {
   legacyRow           Int?
   maintenanceChiefInfo String?
   followUpNotes        String?
+  lifecycleStatus      String             @default("LEAD")
+  serviceStartDate     DateTime?
+  regularMaintenanceData Json?
   deletedAt            DateTime?
+
+  @@index([lifecycleStatus])
 }
 
 model Contact {
