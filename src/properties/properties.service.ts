@@ -395,63 +395,6 @@ export class PropertiesService {
     }
   }
 
-  async sendProposalEmail(
-    propertyId: string,
-    activityId: string,
-    data: CreateProposalEmailDraftDto,
-    file: UploadedProposalFile,
-  ) {
-    const activity = await this.prisma.salesActivity.findFirst({
-      where: {
-        id: activityId,
-        propertyId,
-        type: 'PROPOSAL',
-      },
-    });
-
-    if (!activity) {
-      throw new NotFoundException('Proposal not found for this property.');
-    }
-
-    try {
-      const message = await this.emailDrafts.sendProposal({
-        ...data,
-        fileName: file.originalname,
-        content: file.buffer,
-      });
-      const sentAt = new Date();
-
-      return this.prisma.salesActivity.update({
-        where: { id: activityId },
-        data: {
-          status: 'SENT',
-          sentAt,
-          approvedAt: null,
-          rejectedAt: null,
-          emailDraftId: message.id,
-          emailDraftWebUrl: message.webLink,
-          emailDraftCreatedAt: sentAt,
-          emailDraftFileName: file.originalname,
-        },
-        include: {
-          followUps: {
-            orderBy: {
-              occurredAt: 'desc',
-            },
-          },
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Proposal email send failed for proposal ${activityId}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new BadGatewayException(
-        'The proposal email could not be sent.',
-      );
-    }
-  }
-
   async updateSalesActivityStatus(
     propertyId: string,
     activityId: string,

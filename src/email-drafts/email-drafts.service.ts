@@ -139,12 +139,4 @@ export class EmailDraftsService {
       throw error;
     }
   }
-
-  async sendProposal(draft: ProposalEmailDraft) {
-    const message = await this.createProposalDraft(draft);
-    await this.graph.request<void>(`${this.messagePath(message.id)}/send`, {
-      method: 'POST',
-    });
-    return message;
-  }
 }
