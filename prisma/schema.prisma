@@ -102,7 +102,7 @@ model ChemicalReport {
   serviceDate              DateTime  @db.Date
   technicianName           String
   propertyId               String?
-  propertyName             String
+  propertyName             String?
   waterBodyId              String?
   waterBodyName            String?
   tabsQuantity             Decimal   @default(0) @db.Decimal(12, 2)

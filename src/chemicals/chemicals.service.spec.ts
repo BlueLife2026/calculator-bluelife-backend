@@ -34,6 +34,7 @@ describe('ChemicalsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    create.mockResolvedValue({});
   });
 
   it('rejects a report without chemical quantities', async () => {
@@ -54,8 +55,6 @@ describe('ChemicalsService', () => {
       name: 'Example Property',
       waterBodies: [{ id: data.waterBodyId, name: 'Main Pool' }],
     });
-    create.mockImplementation(({ data: createData }) => createData);
-
     await service.create(data);
 
     expect(create).toHaveBeenCalledWith({
@@ -64,6 +63,25 @@ describe('ChemicalsService', () => {
         waterBodyName: 'Main Pool',
         tabsQuantity: 1,
         liquidChlorineGallons: 2.5,
+      }),
+    });
+  });
+
+  it('stores a warehouse withdrawal without property data', async () => {
+    const data = reportData();
+    delete data.propertyId;
+    delete data.waterBodyId;
+    await service.create(data);
+
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        technicianName: 'Test Technician',
+        propertyId: null,
+        propertyName: null,
+        waterBodyId: null,
+        waterBodyName: null,
+        tabsQuantity: 1,
       }),
     });
   });

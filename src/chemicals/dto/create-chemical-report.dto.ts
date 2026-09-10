@@ -24,8 +24,9 @@ export class CreateChemicalReportDto {
   @MaxLength(120)
   technicianName: string;
 
+  @IsOptional()
   @IsUUID()
-  propertyId: string;
+  propertyId?: string;
 
   @IsOptional()
   @IsUUID()

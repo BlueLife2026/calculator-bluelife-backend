@@ -37,17 +37,25 @@ export class ChemicalsService {
       );
     }
 
-    const property = await this.prisma.property.findFirst({
-      where: { id: data.propertyId, deletedAt: null },
-      include: { waterBodies: true },
-    });
+    const property = data.propertyId
+      ? await this.prisma.property.findFirst({
+          where: { id: data.propertyId, deletedAt: null },
+          include: { waterBodies: true },
+        })
+      : null;
 
-    if (!property) {
+    if (data.propertyId && !property) {
       throw new NotFoundException('Property not found.');
     }
 
+    if (data.waterBodyId && !property) {
+      throw new BadRequestException(
+        'A water body cannot be selected without a property.',
+      );
+    }
+
     const waterBody = data.waterBodyId
-      ? property.waterBodies.find((item) => item.id === data.waterBodyId)
+      ? property?.waterBodies.find((item) => item.id === data.waterBodyId)
       : null;
 
     if (data.waterBodyId && !waterBody) {
@@ -60,8 +68,8 @@ export class ChemicalsService {
       data: {
         serviceDate: new Date(`${data.serviceDate}T12:00:00.000Z`),
         technicianName: data.technicianName.trim(),
-        propertyId: property.id,
-        propertyName: property.name,
+        propertyId: property?.id ?? null,
+        propertyName: property?.name ?? null,
         waterBodyId: waterBody?.id ?? null,
         waterBodyName: waterBody?.name ?? null,
         tabsQuantity: data.tabsQuantity,
