@@ -40,6 +40,7 @@ model Property {
   contacts            PropertyContact[]
   waterBodies         WaterBody[]
   salesActivities     SalesActivity[]
+  chemicalReports     ChemicalReport[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   legacySource        String?
@@ -90,9 +91,43 @@ model WaterBody {
   active     Boolean @default(true)
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  chemicalReports ChemicalReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ChemicalReport {
+  id                       String    @id @default(uuid())
+  serviceDate              DateTime  @db.Date
+  technicianName           String
+  propertyId               String?
+  propertyName             String
+  waterBodyId              String?
+  waterBodyName            String?
+  tabsQuantity             Decimal   @default(0) @db.Decimal(12, 2)
+  liquidChlorineGallons     Decimal   @default(0) @db.Decimal(12, 2)
+  muriaticAcidGallons       Decimal   @default(0) @db.Decimal(12, 2)
+  shockScoops               Decimal   @default(0) @db.Decimal(12, 2)
+  dePowderBags              Decimal   @default(0) @db.Decimal(12, 2)
+  bicarbonateScoops         Decimal   @default(0) @db.Decimal(12, 2)
+  stabilizerScoops          Decimal   @default(0) @db.Decimal(12, 2)
+  saltBags                  Decimal   @default(0) @db.Decimal(12, 2)
+  phosphatesOunces          Decimal   @default(0) @db.Decimal(12, 2)
+  notes                     String?
+  validationStatus          String    @default("PENDING")
+  excelSyncStatus           String    @default("PENDING_CONFIGURATION")
+  excelSyncedAt             DateTime?
+  excelSyncError            String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  property  Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  waterBody WaterBody? @relation(fields: [waterBodyId], references: [id], onDelete: SetNull)
+
+  @@index([serviceDate])
+  @@index([technicianName, serviceDate])
+  @@index([propertyId, serviceDate])
 }
 
 model SalesActivity {
