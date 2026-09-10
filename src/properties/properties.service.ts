@@ -229,20 +229,36 @@ export class PropertiesService {
 
     try {
       let propertyFolderId = property.sharepointFolderId;
+      let propertyFolderUrl = property.sharepointFolderUrl;
 
-      if (!propertyFolderId || !property.sharepointFolderUrl) {
-        const folder = await this.sharePoint.createPropertyFolder(
-          property.id,
-          property.name,
-        );
-        propertyFolderId = folder.id;
+      if (!propertyFolderId) {
+        if (propertyFolderUrl) {
+          const resolvedFolder =
+            await this.sharePoint.resolveFolderFromWebUrl(propertyFolderUrl);
+          propertyFolderId = resolvedFolder.id;
+          propertyFolderUrl = resolvedFolder.webUrl;
+        }
+
+        if (!propertyFolderId) {
+          const createdFolder = await this.sharePoint.createPropertyFolder(
+            property.id,
+            property.name,
+          );
+          propertyFolderId = createdFolder.id;
+          propertyFolderUrl = createdFolder.webUrl;
+        }
+
         await this.prisma.property.update({
           where: { id },
           data: {
-            sharepointFolderId: folder.id,
-            sharepointFolderUrl: folder.webUrl,
+            sharepointFolderId: propertyFolderId,
+            sharepointFolderUrl: propertyFolderUrl,
           },
         });
+      }
+
+      if (!propertyFolderId) {
+        throw new Error('The property SharePoint folder is not available.');
       }
 
       await this.sharePoint.ensureWaterBodyFolders(
@@ -321,6 +337,77 @@ export class PropertiesService {
     }
   }
 
+  async storeProposalPdf(
+    propertyId: string,
+    activityId: string,
+    file: UploadedProposalFile,
+  ) {
+    const [property, activity] = await Promise.all([
+      this.prisma.property.findFirst({
+        where: { id: propertyId, deletedAt: null },
+      }),
+      this.prisma.salesActivity.findFirst({
+        where: {
+          id: activityId,
+          propertyId,
+          type: 'PROPOSAL',
+        },
+      }),
+    ]);
+
+    if (!property || !activity) {
+      throw new NotFoundException('Proposal not found for this property.');
+    }
+
+    try {
+      let propertyFolderId = property.sharepointFolderId;
+      if (!propertyFolderId) {
+        await this.provisionSharePointFolder(propertyId);
+        const refreshedProperty = await this.prisma.property.findUnique({
+          where: { id: propertyId },
+          select: { sharepointFolderId: true },
+        });
+        propertyFolderId = refreshedProperty?.sharepointFolderId ?? null;
+      }
+
+      if (!propertyFolderId) {
+        throw new Error('The property SharePoint folder is not available.');
+      }
+
+      const uploaded = await this.sharePoint.uploadProposalPdf(
+        propertyFolderId,
+        activityId,
+        file.originalname,
+        file.buffer,
+      );
+
+      return this.prisma.salesActivity.update({
+        where: { id: activityId },
+        data: {
+          proposalPdfSharepointId: uploaded.id,
+          proposalPdfSharepointUrl: uploaded.webUrl,
+          proposalPdfFileName: uploaded.name,
+          proposalPdfUploadedAt: new Date(),
+        },
+        include: {
+          followUps: {
+            orderBy: {
+              occurredAt: 'desc',
+            },
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Proposal PDF SharePoint upload failed for proposal ${activityId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadGatewayException(
+        'The proposal PDF could not be saved to SharePoint.',
+      );
+    }
+  }
+
   async createSalesActivity(propertyId: string, data: CreateSalesActivityDto) {
     const property = await this.prisma.property.findFirst({
       where: { id: propertyId, deletedAt: null },
@@ -360,6 +447,8 @@ export class PropertiesService {
     if (!activity) {
       throw new NotFoundException('Proposal not found for this property.');
     }
+
+    await this.storeProposalPdf(propertyId, activityId, file);
 
     try {
       const draft = await this.emailDrafts.createProposalDraft({

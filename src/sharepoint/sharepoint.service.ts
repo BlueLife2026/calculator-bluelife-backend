@@ -113,6 +113,22 @@ export class SharePointService {
     );
   }
 
+  async resolveFolderFromWebUrl(webUrl: string) {
+    const shareId = `u!${Buffer.from(webUrl, 'utf8')
+      .toString('base64')
+      .replace(/=+$/g, '')
+      .replace(/\//g, '_')
+      .replace(/\+/g, '-')}`;
+    const folder = await this.graph<GraphFolder>(
+      `/shares/${shareId}/driveItem?$select=id,name,webUrl,folder`,
+    );
+
+    if (!folder.folder) {
+      throw new Error('The SharePoint URL does not point to a folder.');
+    }
+    return folder;
+  }
+
   async ensureWaterBodyFolders(
     propertyFolderId: string,
     waterBodyNames: string[],
@@ -159,20 +175,25 @@ export class SharePointService {
     );
   }
 
-  async uploadWaterBodyPhoto(
-    waterBodyFolderId: string,
-    originalFileName: string,
+  async ensureProposalsFolder(propertyFolderId: string) {
+    const [folder] = await this.ensureWaterBodyFolders(propertyFolderId, [
+      'Proposals',
+    ]);
+    if (!folder) {
+      throw new Error('The Proposals folder could not be created.');
+    }
+    return folder;
+  }
+
+  private async uploadFile(
+    folderId: string,
+    fileName: string,
     content: Buffer,
     contentType: string,
   ) {
     const { driveId } = await this.resolveDrive();
-    const safeFileName = this.sanitizeFolderName(
-      originalFileName.split(/[\\/]/).pop() ?? '',
-      'photo',
-    );
-    const uploadName = `${Date.now()}-${safeFileName}`;
     const response = await fetch(
-      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${waterBodyFolderId}:/${encodeURIComponent(uploadName)}:/content`,
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/${encodeURIComponent(fileName)}:/content`,
       {
         method: 'PUT',
         headers: {
@@ -188,5 +209,48 @@ export class SharePointService {
     }
 
     return (await response.json()) as GraphFolder;
+  }
+
+  async uploadWaterBodyPhoto(
+    waterBodyFolderId: string,
+    originalFileName: string,
+    content: Buffer,
+    contentType: string,
+  ) {
+    const safeFileName = this.sanitizeFolderName(
+      originalFileName.split(/[\\/]/).pop() ?? '',
+      'photo',
+    );
+    const uploadName = `${Date.now()}-${safeFileName}`;
+    return this.uploadFile(
+      waterBodyFolderId,
+      uploadName,
+      content,
+      contentType,
+    );
+  }
+
+  async uploadProposalPdf(
+    propertyFolderId: string,
+    activityId: string,
+    originalFileName: string,
+    content: Buffer,
+  ) {
+    const proposalsFolder = await this.ensureProposalsFolder(propertyFolderId);
+    const safeFileName = this.sanitizeFolderName(
+      originalFileName.split(/[\\/]/).pop() ?? '',
+      'proposal.pdf',
+    );
+    const baseName = safeFileName.toLowerCase().endsWith('.pdf')
+      ? safeFileName.slice(0, -4)
+      : safeFileName;
+    const uploadName = `${baseName}-${activityId.slice(0, 8)}.pdf`;
+
+    return this.uploadFile(
+      proposalsFolder.id,
+      uploadName,
+      content,
+      'application/pdf',
+    );
   }
 }

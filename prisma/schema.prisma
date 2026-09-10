@@ -110,6 +110,10 @@ model SalesActivity {
   emailDraftWebUrl String?
   emailDraftCreatedAt DateTime?
   emailDraftFileName String?
+  proposalPdfSharepointId String?
+  proposalPdfSharepointUrl String?
+  proposalPdfFileName String?
+  proposalPdfUploadedAt DateTime?
   followUps  ProposalFollowUp[]
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)

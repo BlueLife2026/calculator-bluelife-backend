@@ -129,6 +129,38 @@ export class PropertiesController {
     );
   }
 
+  @Post(':propertyId/sales-activities/:activityId/pdf')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 20 * 1024 * 1024 },
+    }),
+  )
+  storeProposalPdf(
+    @Param('propertyId') propertyId: string,
+    @Param('activityId') activityId: string,
+    @UploadedFile()
+    file:
+      | {
+          buffer: Buffer;
+          originalname: string;
+          mimetype: string;
+        }
+      | undefined,
+  ) {
+    if (!file) {
+      throw new BadRequestException('A proposal PDF is required.');
+    }
+    if (file.mimetype !== 'application/pdf') {
+      throw new BadRequestException('Only PDF proposal files are allowed.');
+    }
+
+    return this.propertiesService.storeProposalPdf(
+      propertyId,
+      activityId,
+      file,
+    );
+  }
+
   @Patch(':propertyId/sales-activities/:activityId/status')
   updateSalesActivityStatus(
     @Param('propertyId') propertyId: string,
