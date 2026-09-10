@@ -19,12 +19,11 @@ import { CreateSalesActivityDto } from './dto/create-sales-activity.dto';
 import { CreateProposalFollowUpDto } from './dto/create-proposal-follow-up.dto';
 import { UpdateSalesActivityStatusDto } from './dto/update-sales-activity-status.dto';
 import { UpdateSalesActivityDto } from './dto/update-sales-activity.dto';
+import { CreateProposalEmailDraftDto } from './dto/create-proposal-email-draft.dto';
 
 @Controller('properties')
 export class PropertiesController {
-  constructor(
-    private readonly propertiesService: PropertiesService,
-  ) {}
+  constructor(private readonly propertiesService: PropertiesService) {}
 
   @Get()
   findAll() {
@@ -47,10 +46,7 @@ export class PropertiesController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() data: UpdatePropertyDto,
-  ) {
+  update(@Param('id') id: string, @Body() data: UpdatePropertyDto) {
     return this.propertiesService.update(id, data);
   }
 
@@ -99,6 +95,40 @@ export class PropertiesController {
     return this.propertiesService.createSalesActivity(id, data);
   }
 
+  @Post(':propertyId/sales-activities/:activityId/email-draft')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 20 * 1024 * 1024 },
+    }),
+  )
+  createProposalEmailDraft(
+    @Param('propertyId') propertyId: string,
+    @Param('activityId') activityId: string,
+    @Body() data: CreateProposalEmailDraftDto,
+    @UploadedFile()
+    file:
+      | {
+          buffer: Buffer;
+          originalname: string;
+          mimetype: string;
+        }
+      | undefined,
+  ) {
+    if (!file) {
+      throw new BadRequestException('A proposal PDF is required.');
+    }
+    if (file.mimetype !== 'application/pdf') {
+      throw new BadRequestException('Only PDF proposal files are allowed.');
+    }
+
+    return this.propertiesService.createProposalEmailDraft(
+      propertyId,
+      activityId,
+      data,
+      file,
+    );
+  }
+
   @Patch(':propertyId/sales-activities/:activityId/status')
   updateSalesActivityStatus(
     @Param('propertyId') propertyId: string,
@@ -131,7 +161,11 @@ export class PropertiesController {
     @Param('activityId') activityId: string,
     @Body() data: UpdateSalesActivityDto,
   ) {
-    return this.propertiesService.updateSalesActivity(propertyId, activityId, data);
+    return this.propertiesService.updateSalesActivity(
+      propertyId,
+      activityId,
+      data,
+    );
   }
 
   @Delete(':propertyId/sales-activities/:activityId')

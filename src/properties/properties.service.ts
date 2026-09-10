@@ -14,11 +14,18 @@ import { SharePointService } from '../sharepoint/sharepoint.service';
 import { CreateSalesActivityDto } from './dto/create-sales-activity.dto';
 import { CreateProposalFollowUpDto } from './dto/create-proposal-follow-up.dto';
 import { UpdateSalesActivityDto } from './dto/update-sales-activity.dto';
+import { CreateProposalEmailDraftDto } from './dto/create-proposal-email-draft.dto';
+import { EmailDraftsService } from '../email-drafts/email-drafts.service';
 
 type UploadedImageFile = {
   buffer: Buffer;
   originalname: string;
   mimetype: string;
+};
+
+type UploadedProposalFile = {
+  buffer: Buffer;
+  originalname: string;
 };
 
 @Injectable()
@@ -28,6 +35,7 @@ export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sharePoint: SharePointService,
+    private readonly emailDrafts: EmailDraftsService,
   ) {}
 
   findAll() {
@@ -67,54 +75,47 @@ export class PropertiesService {
   }
 
   async findOne(id: string) {
-    const property =
-      await this.prisma.property.findUnique({
-        where: {
-          id,
+    const property = await this.prisma.property.findUnique({
+      where: {
+        id,
+      },
+
+      include: {
+        managementCompany: true,
+
+        contacts: {
+          include: {
+            contact: true,
+          },
         },
 
-        include: {
-          managementCompany: true,
+        waterBodies: true,
 
-          contacts: {
-            include: {
-              contact: true,
-            },
+        salesActivities: {
+          orderBy: {
+            occurredAt: 'desc',
           },
-
-          waterBodies: true,
-
-          salesActivities: {
-            orderBy: {
-              occurredAt: 'desc',
-            },
-            include: {
-              followUps: {
-                orderBy: {
-                  occurredAt: 'desc',
-                },
+          include: {
+            followUps: {
+              orderBy: {
+                occurredAt: 'desc',
               },
             },
           },
         },
-      });
+      },
+    });
 
     if (!property) {
-      throw new NotFoundException(
-        `No se encontró la propiedad con id ${id}`,
-      );
+      throw new NotFoundException(`No se encontró la propiedad con id ${id}`);
     }
 
     return property;
   }
 
   async create(data: CreatePropertyDto) {
-    const {
-      contacts,
-      waterBodies,
-      managementCompanyName,
-      ...propertyData
-    } = data;
+    const { contacts, waterBodies, managementCompanyName, ...propertyData } =
+      data;
     const normalizedManagementCompanyName = managementCompanyName?.trim();
     const normalizedEmails = contacts.map((contact) =>
       contact.email.trim().toLowerCase(),
@@ -133,9 +134,7 @@ export class PropertiesService {
     }
 
     if (contacts.filter((contact) => contact.isPrimary).length > 1) {
-      throw new BadRequestException(
-        'Only one contact can be primary.',
-      );
+      throw new BadRequestException('Only one contact can be primary.');
     }
 
     const requestedPrimaryIndex = contacts.findIndex(
@@ -144,9 +143,7 @@ export class PropertiesService {
     const primaryIndex =
       requestedPrimaryIndex >= 0
         ? requestedPrimaryIndex
-        : contacts.findIndex(
-            (contact) => contact.role === 'PROPERTY_MANAGER',
-          );
+        : contacts.findIndex((contact) => contact.role === 'PROPERTY_MANAGER');
 
     const property = await this.prisma.property.create({
       data: {
@@ -182,6 +179,7 @@ export class PropertiesService {
                   name: waterBody.name.trim(),
                   type: waterBody.type,
                   size: waterBody.size ?? null,
+                  gallons: waterBody.gallons ?? null,
                   active: waterBody.active ?? true,
                 })),
               },
@@ -297,11 +295,10 @@ export class PropertiesService {
         throw new Error('The property SharePoint folder is not available.');
       }
 
-      const [waterBodyFolder] =
-        await this.sharePoint.ensureWaterBodyFolders(
-          propertyFolderId,
-          [waterBody.name],
-        );
+      const [waterBodyFolder] = await this.sharePoint.ensureWaterBodyFolders(
+        propertyFolderId,
+        [waterBody.name],
+      );
 
       if (!waterBodyFolder) {
         throw new Error('The water body SharePoint folder is not available.');
@@ -324,10 +321,7 @@ export class PropertiesService {
     }
   }
 
-  async createSalesActivity(
-    propertyId: string,
-    data: CreateSalesActivityDto,
-  ) {
+  async createSalesActivity(propertyId: string, data: CreateSalesActivityDto) {
     const property = await this.prisma.property.findFirst({
       where: { id: propertyId, deletedAt: null },
     });
@@ -349,6 +343,58 @@ export class PropertiesService {
     });
   }
 
+  async createProposalEmailDraft(
+    propertyId: string,
+    activityId: string,
+    data: CreateProposalEmailDraftDto,
+    file: UploadedProposalFile,
+  ) {
+    const activity = await this.prisma.salesActivity.findFirst({
+      where: {
+        id: activityId,
+        propertyId,
+        type: 'PROPOSAL',
+      },
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Proposal not found for this property.');
+    }
+
+    try {
+      const draft = await this.emailDrafts.createProposalDraft({
+        ...data,
+        fileName: file.originalname,
+        content: file.buffer,
+      });
+
+      return this.prisma.salesActivity.update({
+        where: { id: activityId },
+        data: {
+          emailDraftId: draft.id,
+          emailDraftWebUrl: draft.webLink,
+          emailDraftCreatedAt: new Date(),
+          emailDraftFileName: file.originalname,
+        },
+        include: {
+          followUps: {
+            orderBy: {
+              occurredAt: 'desc',
+            },
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Outlook draft creation failed for proposal ${activityId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadGatewayException(
+        'The proposal was saved, but the Outlook draft could not be created.',
+      );
+    }
+  }
+
   async updateSalesActivityStatus(
     propertyId: string,
     activityId: string,
@@ -367,8 +413,12 @@ export class PropertiesService {
       where: { id: activityId },
       data: {
         status,
-        ...(status === 'CREATED' ? { sentAt: null, approvedAt: null, rejectedAt: null } : {}),
-        ...(status === 'SENT' ? { sentAt: now, approvedAt: null, rejectedAt: null } : {}),
+        ...(status === 'CREATED'
+          ? { sentAt: null, approvedAt: null, rejectedAt: null }
+          : {}),
+        ...(status === 'SENT'
+          ? { sentAt: now, approvedAt: null, rejectedAt: null }
+          : {}),
         ...(status === 'APPROVED'
           ? {
               approvedAt: activity.approvedAt ?? now,
@@ -453,7 +503,9 @@ export class PropertiesService {
       where: { id: activityId, propertyId },
     });
     if (!activity) {
-      throw new NotFoundException('Sales activity not found for this property.');
+      throw new NotFoundException(
+        'Sales activity not found for this property.',
+      );
     }
     return this.prisma.salesActivity.update({
       where: { id: activityId },
@@ -473,7 +525,9 @@ export class PropertiesService {
       where: { id: activityId, propertyId },
     });
     if (!activity) {
-      throw new NotFoundException('Sales activity not found for this property.');
+      throw new NotFoundException(
+        'Sales activity not found for this property.',
+      );
     }
     return this.prisma.salesActivity.delete({ where: { id: activityId } });
   }
@@ -505,32 +559,22 @@ export class PropertiesService {
     });
   }
 
-  async update(
-    id: string,
-    data: UpdatePropertyDto,
-  ) {
-    const {
-      contacts,
-      waterBodies,
-      managementCompanyName,
-      ...propertyData
-    } = data;
+  async update(id: string, data: UpdatePropertyDto) {
+    const { contacts, waterBodies, managementCompanyName, ...propertyData } =
+      data;
     const normalizedManagementCompanyName = managementCompanyName?.trim();
-    const existing =
-      await this.prisma.property.findUnique({
-        where: {
-          id,
-          deletedAt: null,
-        },
-        include: {
-          contacts: true,
-        },
-      });
+    const existing = await this.prisma.property.findUnique({
+      where: {
+        id,
+        deletedAt: null,
+      },
+      include: {
+        contacts: true,
+      },
+    });
 
     if (!existing) {
-      throw new NotFoundException(
-        `No se encontró la propiedad con id ${id}`,
-      );
+      throw new NotFoundException(`No se encontró la propiedad con id ${id}`);
     }
 
     if (!contacts) {
@@ -571,9 +615,7 @@ export class PropertiesService {
     }
 
     if (contacts.filter((contact) => contact.isPrimary).length !== 1) {
-      throw new BadRequestException(
-        'Exactly one contact must be primary.',
-      );
+      throw new BadRequestException('Exactly one contact must be primary.');
     }
 
     const existingContactIds = new Set(
@@ -583,8 +625,7 @@ export class PropertiesService {
     if (
       contacts.some(
         (contact) =>
-          contact.contactId &&
-          !existingContactIds.has(contact.contactId),
+          contact.contactId && !existingContactIds.has(contact.contactId),
       )
     ) {
       throw new BadRequestException(
@@ -663,6 +704,7 @@ export class PropertiesService {
               name: waterBody.name.trim(),
               type: waterBody.type,
               size: waterBody.size ?? null,
+              gallons: waterBody.gallons ?? null,
               active: waterBody.active ?? true,
             })),
           });

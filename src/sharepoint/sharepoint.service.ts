@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { MicrosoftGraphService } from '../microsoft-graph/microsoft-graph.service';
+
 type GraphFolder = {
   id: string;
   name: string;
@@ -14,12 +16,13 @@ type GraphChildrenResponse = {
 
 @Injectable()
 export class SharePointService {
-  private accessToken: string | null = null;
-  private accessTokenExpiresAt = 0;
   private siteId: string | null = null;
   private driveId: string | null = null;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly microsoftGraph: MicrosoftGraphService,
+  ) {}
 
   private required(name: string) {
     const value = this.config.get<string>(name)?.trim();
@@ -29,75 +32,22 @@ export class SharePointService {
     return value;
   }
 
-  private async getAccessToken() {
-    if (
-      this.accessToken &&
-      Date.now() < this.accessTokenExpiresAt - 60_000
-    ) {
-      return this.accessToken;
-    }
-
-    const tenantId = this.required('MICROSOFT_TENANT_ID');
-    const body = new URLSearchParams({
-      client_id: this.required('MICROSOFT_CLIENT_ID'),
-      client_secret: this.required('MICROSOFT_CLIENT_SECRET'),
-      scope: 'https://graph.microsoft.com/.default',
-      grant_type: 'client_credentials',
-    });
-    const response = await fetch(
-      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Microsoft authentication failed (${response.status})`);
-    }
-
-    const token = (await response.json()) as {
-      access_token: string;
-      expires_in: number;
-    };
-    this.accessToken = token.access_token;
-    this.accessTokenExpiresAt = Date.now() + token.expires_in * 1000;
-    return this.accessToken;
-  }
-
   private async graph<T>(path: string, init?: RequestInit): Promise<T> {
-    const token = await this.getAccessToken();
-    const response = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...init?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Microsoft Graph request failed (${response.status})`);
-    }
-
-    return (await response.json()) as T;
+    return this.microsoftGraph.request<T>(path, init);
   }
 
   private encodePath(path: string) {
-    return path
-      .split('/')
-      .filter(Boolean)
-      .map(encodeURIComponent)
-      .join('/');
+    return path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
   }
 
   private sanitizeFolderName(value: string, fallback: string) {
-    return value
-      .replace(/["*:<>?/\\|#%]/g, '-')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/[. ]+$/g, '') || fallback;
+    return (
+      value
+        .replace(/["*:<>?/\\|#%]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/[. ]+$/g, '') || fallback
+    );
   }
 
   private async resolveDrive() {
@@ -204,8 +154,8 @@ export class SharePointService {
       foldersByName.set(key, folder);
     }
 
-    return requestedNames.map(
-      (folderName) => foldersByName.get(folderName.toLocaleLowerCase()),
+    return requestedNames.map((folderName) =>
+      foldersByName.get(folderName.toLocaleLowerCase()),
     );
   }
 
@@ -226,7 +176,7 @@ export class SharePointService {
       {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${await this.getAccessToken()}`,
+          Authorization: `Bearer ${await this.microsoftGraph.getAccessToken()}`,
           'Content-Type': contentType,
         },
         body: content as unknown as BodyInit,

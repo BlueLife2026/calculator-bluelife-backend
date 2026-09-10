@@ -81,6 +81,7 @@ model WaterBody {
   name       String
   type       String
   size       String?
+  gallons    Int?
   active     Boolean @default(true)
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -100,6 +101,10 @@ model SalesActivity {
   approvedAt DateTime?
   rejectedAt DateTime?
   proposalData Json?
+  emailDraftId String?
+  emailDraftWebUrl String?
+  emailDraftCreatedAt DateTime?
+  emailDraftFileName String?
   followUps  ProposalFollowUp[]
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
