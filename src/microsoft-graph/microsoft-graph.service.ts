@@ -67,7 +67,9 @@ export class MicrosoftGraphService {
       );
     }
 
-    if (response.status === 204) return undefined as T;
+    if (response.status === 202 || response.status === 204) {
+      return undefined as T;
+    }
     return (await response.json()) as T;
   }
 }
