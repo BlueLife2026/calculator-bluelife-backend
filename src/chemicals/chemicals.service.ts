@@ -23,6 +23,57 @@ const quantityFields = [
 export class ChemicalsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  findTechnicians() {
+    return this.prisma.chemicalTechnician.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    });
+  }
+
+  async resolveTechnician(shareToken: string) {
+    const technician = await this.prisma.chemicalTechnician.findFirst({
+      where: { shareToken, active: true },
+      select: { name: true },
+    });
+    if (!technician) {
+      throw new NotFoundException('Technician link not found.');
+    }
+    return technician;
+  }
+
+  async technicianWhatsAppUrl(id: string, formUrl: string) {
+    let parsedFormUrl: URL;
+    try {
+      parsedFormUrl = new URL(formUrl);
+    } catch {
+      throw new BadRequestException('The form URL is invalid.');
+    }
+
+    if (!['http:', 'https:'].includes(parsedFormUrl.protocol)) {
+      throw new BadRequestException('The form URL is invalid.');
+    }
+
+    const technician = await this.prisma.chemicalTechnician.findFirst({
+      where: { id, active: true },
+      select: { name: true, whatsappNumber: true, shareToken: true },
+    });
+    if (!technician) {
+      throw new NotFoundException('Technician not found.');
+    }
+
+    parsedFormUrl.searchParams.delete('technician');
+    parsedFormUrl.searchParams.set('area', 'chemicals');
+    parsedFormUrl.searchParams.set('technicianToken', technician.shareToken);
+    const firstName = technician.name.split(' ')[0];
+    const message = `Hola ${firstName}, registra aquí las cantidades de químicos que retiraste de bodega: ${parsedFormUrl.toString()}`;
+    const whatsappUrl = new URL(
+      `https://wa.me/${technician.whatsappNumber}`,
+    );
+    whatsappUrl.searchParams.set('text', message);
+    return whatsappUrl.toString();
+  }
+
   findAll() {
     return this.prisma.chemicalReport.findMany({
       orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
@@ -36,6 +87,10 @@ export class ChemicalsService {
         'At least one chemical quantity must be greater than zero.',
       );
     }
+
+    const technicianName = data.technicianToken
+      ? (await this.resolveTechnician(data.technicianToken)).name
+      : data.technicianName.trim();
 
     const property = data.propertyId
       ? await this.prisma.property.findFirst({
@@ -67,7 +122,7 @@ export class ChemicalsService {
     return this.prisma.chemicalReport.create({
       data: {
         serviceDate: new Date(`${data.serviceDate}T12:00:00.000Z`),
-        technicianName: data.technicianName.trim(),
+        technicianName,
         propertyId: property?.id ?? null,
         propertyName: property?.name ?? null,
         waterBodyId: waterBody?.id ?? null,

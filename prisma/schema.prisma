@@ -130,6 +130,16 @@ model ChemicalReport {
   @@index([propertyId, serviceDate])
 }
 
+model ChemicalTechnician {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  whatsappNumber String   @unique
+  shareToken     String   @unique @default(uuid()) @db.Uuid
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model SalesActivity {
   id         String   @id @default(uuid())
   propertyId String

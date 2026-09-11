@@ -26,6 +26,10 @@ export class CreateChemicalReportDto {
 
   @IsOptional()
   @IsUUID()
+  technicianToken?: string;
+
+  @IsOptional()
+  @IsUUID()
   propertyId?: string;
 
   @IsOptional()
