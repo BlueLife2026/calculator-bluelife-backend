@@ -119,6 +119,8 @@ model ChemicalReport {
   excelSyncStatus           String    @default("PENDING_CONFIGURATION")
   excelSyncedAt             DateTime?
   excelSyncError            String?
+  deletedAt                 DateTime?
+  deletedByEmail            String?
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
@@ -138,6 +140,28 @@ model ChemicalTechnician {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model ChemicalOwner {
+  id           String                 @id @default(uuid())
+  name         String
+  email        String                 @unique
+  passwordHash String
+  active       Boolean                @default(true)
+  sessions     ChemicalOwnerSession[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+}
+
+model ChemicalOwnerSession {
+  id        String        @id @default(uuid())
+  tokenHash String        @unique
+  expiresAt DateTime
+  ownerId   String
+  owner     ChemicalOwner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@index([ownerId, expiresAt])
 }
 
 model SalesActivity {

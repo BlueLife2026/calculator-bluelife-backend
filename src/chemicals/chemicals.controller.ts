@@ -1,7 +1,19 @@
-import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 
 import { ChemicalsService } from './chemicals.service';
+import { AccessChemicalOwnerDto } from './dto/access-chemical-owner.dto';
 import { AccessChemicalTechnicianDto } from './dto/access-chemical-technician.dto';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
 
@@ -40,6 +52,22 @@ export class ChemicalsController {
     return this.chemicalsService.findAll();
   }
 
+  @Post('owner/access')
+  accessOwner(@Body() data: AccessChemicalOwnerDto) {
+    return this.chemicalsService.accessOwner(data.email, data.password);
+  }
+
+  @Get('owner/session')
+  ownerSession(@Headers('authorization') authorization?: string) {
+    return this.chemicalsService.ownerSession(authorization);
+  }
+
+  @Post('owner/logout')
+  @HttpCode(204)
+  async logoutOwner(@Headers('authorization') authorization?: string) {
+    await this.chemicalsService.logoutOwner(authorization);
+  }
+
   @Get('reports/export')
   async export(@Res() response: Response) {
     const csv = await this.chemicalsService.exportCsv();
@@ -53,5 +81,13 @@ export class ChemicalsController {
   @Post('reports')
   create(@Body() data: CreateChemicalReportDto) {
     return this.chemicalsService.create(data);
+  }
+
+  @Delete('reports/:id')
+  remove(
+    @Param('id') id: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.chemicalsService.remove(id, authorization);
   }
 }

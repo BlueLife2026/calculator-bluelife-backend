@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { ChemicalsService } from './chemicals.service';
@@ -24,13 +24,20 @@ function reportData(): CreateChemicalReportDto {
 
 describe('ChemicalsService', () => {
   const create = jest.fn();
+  const update = jest.fn();
   const findMany = jest.fn();
   const findFirst = jest.fn();
+  const findReport = jest.fn();
   const findTechnician = jest.fn();
   const findTechnicians = jest.fn();
+  const findOwnerSession = jest.fn();
   const prisma = {
-    chemicalReport: { create, findMany },
-    chemicalTechnician: { findFirst: findTechnician, findMany: findTechnicians },
+    chemicalReport: { create, findMany, findFirst: findReport, update },
+    chemicalTechnician: {
+      findFirst: findTechnician,
+      findMany: findTechnicians,
+    },
+    chemicalOwnerSession: { findUnique: findOwnerSession },
     property: { findFirst },
   } as unknown as PrismaService;
   const service = new ChemicalsService(prisma);
@@ -131,13 +138,43 @@ describe('ChemicalsService', () => {
 
   it('recognizes a technician name without depending on case or accents', async () => {
     const shareToken = '00000000-0000-4000-8000-000000000006';
-    findTechnicians.mockResolvedValue([
-      { name: 'Ángel Viña', shareToken },
-    ]);
+    findTechnicians.mockResolvedValue([{ name: 'Ángel Viña', shareToken }]);
 
     await expect(service.accessTechnician('angel vina')).resolves.toEqual({
       name: 'Ángel Viña',
       technicianToken: shareToken,
+    });
+  });
+
+  it('rejects report deletion without an owner session', async () => {
+    await expect(service.remove('report-id')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(findReport).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('soft deletes a report with the authenticated owner email', async () => {
+    findOwnerSession.mockResolvedValue({
+      expiresAt: new Date(Date.now() + 60_000),
+      owner: {
+        active: true,
+        name: 'Ximena',
+        email: 'ximenam@bluelifepools.com',
+      },
+    });
+    findReport.mockResolvedValue({ id: 'report-id' });
+    update.mockResolvedValue({ id: 'report-id' });
+
+    await service.remove('report-id', 'Bearer private-owner-token');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'report-id' },
+      data: {
+        deletedAt: expect.any(Date),
+        deletedByEmail: 'ximenam@bluelifepools.com',
+      },
+      select: { id: true },
     });
   });
 });

@@ -2,7 +2,14 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import {
+  createHash,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from 'node:crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
@@ -25,6 +32,35 @@ function technicianCode(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]/g, '')
     .toLowerCase();
+}
+
+function tokenHash(value: string) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function bearerToken(authorization?: string) {
+  const [scheme, token] = authorization?.trim().split(/\s+/, 2) ?? [];
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
+    throw new UnauthorizedException('Owner access is required.');
+  }
+  return token;
+}
+
+function passwordMatches(password: string, storedHash: string) {
+  const [algorithm, saltHex, hashHex] = storedHash.split('$');
+  if (algorithm !== 'scrypt' || !saltHex || !hashHex) return false;
+
+  try {
+    const expected = Buffer.from(hashHex, 'hex');
+    const candidate = scryptSync(
+      password,
+      Buffer.from(saltHex, 'hex'),
+      expected.length,
+    );
+    return timingSafeEqual(candidate, expected);
+  } catch {
+    return false;
+  }
 }
 
 @Injectable()
@@ -93,17 +129,87 @@ export class ChemicalsService {
     parsedFormUrl.searchParams.set('technicianToken', technician.shareToken);
     const firstName = technician.name.split(' ')[0];
     const message = `Hola ${firstName}, registra aquí las cantidades de químicos que retiraste de bodega: ${parsedFormUrl.toString()}`;
-    const whatsappUrl = new URL(
-      `https://wa.me/${technician.whatsappNumber}`,
-    );
+    const whatsappUrl = new URL(`https://wa.me/${technician.whatsappNumber}`);
     whatsappUrl.searchParams.set('text', message);
     return whatsappUrl.toString();
   }
 
   findAll() {
     return this.prisma.chemicalReport.findMany({
+      where: { deletedAt: null },
       orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
       take: 500,
+    });
+  }
+
+  async accessOwner(email: string, password: string) {
+    const owner = await this.prisma.chemicalOwner.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
+    if (!owner?.active || !passwordMatches(password, owner.passwordHash)) {
+      throw new UnauthorizedException('Invalid owner credentials.');
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await this.prisma.$transaction([
+      this.prisma.chemicalOwnerSession.deleteMany({
+        where: { expiresAt: { lte: new Date() } },
+      }),
+      this.prisma.chemicalOwnerSession.create({
+        data: {
+          tokenHash: tokenHash(token),
+          expiresAt,
+          ownerId: owner.id,
+        },
+      }),
+    ]);
+
+    return {
+      token,
+      expiresAt,
+      owner: { name: owner.name, email: owner.email },
+    };
+  }
+
+  async ownerSession(authorization?: string) {
+    const token = bearerToken(authorization);
+    const session = await this.prisma.chemicalOwnerSession.findUnique({
+      where: { tokenHash: tokenHash(token) },
+      include: { owner: true },
+    });
+    if (!session || session.expiresAt <= new Date() || !session.owner.active) {
+      throw new UnauthorizedException('Owner session is not valid.');
+    }
+    return {
+      name: session.owner.name,
+      email: session.owner.email,
+      expiresAt: session.expiresAt,
+    };
+  }
+
+  async logoutOwner(authorization?: string) {
+    const token = bearerToken(authorization);
+    await this.prisma.chemicalOwnerSession.deleteMany({
+      where: { tokenHash: tokenHash(token) },
+    });
+  }
+
+  async remove(id: string, authorization?: string) {
+    const owner = await this.ownerSession(authorization);
+    const report = await this.prisma.chemicalReport.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!report) throw new NotFoundException('Chemical report not found.');
+
+    return this.prisma.chemicalReport.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        deletedByEmail: owner.email,
+      },
+      select: { id: true },
     });
   }
 
@@ -169,6 +275,7 @@ export class ChemicalsService {
 
   async exportCsv() {
     const reports = await this.prisma.chemicalReport.findMany({
+      where: { deletedAt: null },
       orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
     });
     const headers = [
@@ -186,7 +293,6 @@ export class ChemicalsService {
       'SALT (BAG)',
       'Phosphates (oz)',
       'Notas',
-      'Estado validación',
     ];
     const escape = (value: unknown) =>
       `"${String(value ?? '').replaceAll('"', '""')}"`;
@@ -205,7 +311,6 @@ export class ChemicalsService {
       report.saltBags,
       report.phosphatesOunces,
       report.notes,
-      report.validationStatus,
     ]);
 
     return `\uFEFF${[headers, ...rows]
