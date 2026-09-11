@@ -6,7 +6,7 @@ export class AccessChemicalOwnerDto {
   email: string;
 
   @IsString()
-  @MinLength(12)
+  @MinLength(8)
   @MaxLength(200)
   password: string;
 }
