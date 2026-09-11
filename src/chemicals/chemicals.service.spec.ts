@@ -27,9 +27,10 @@ describe('ChemicalsService', () => {
   const findMany = jest.fn();
   const findFirst = jest.fn();
   const findTechnician = jest.fn();
+  const findTechnicians = jest.fn();
   const prisma = {
     chemicalReport: { create, findMany },
-    chemicalTechnician: { findFirst: findTechnician, findMany: jest.fn() },
+    chemicalTechnician: { findFirst: findTechnician, findMany: findTechnicians },
     property: { findFirst },
   } as unknown as PrismaService;
   const service = new ChemicalsService(prisma);
@@ -126,5 +127,17 @@ describe('ChemicalsService', () => {
     expect(whatsappUrl.pathname).toBe('/15551234567');
     expect(message).toContain(`technicianToken=${shareToken}`);
     expect(message).not.toContain('Assigned%20Technician');
+  });
+
+  it('recognizes a technician name without depending on case or accents', async () => {
+    const shareToken = '00000000-0000-4000-8000-000000000006';
+    findTechnicians.mockResolvedValue([
+      { name: 'Ángel Viña', shareToken },
+    ]);
+
+    await expect(service.accessTechnician('angel vina')).resolves.toEqual({
+      name: 'Ángel Viña',
+      technicianToken: shareToken,
+    });
   });
 });

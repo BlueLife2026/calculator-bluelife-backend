@@ -19,6 +19,14 @@ const quantityFields = [
   'phosphatesOunces',
 ] as const;
 
+function technicianCode(value: string) {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase();
+}
+
 @Injectable()
 export class ChemicalsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -29,6 +37,24 @@ export class ChemicalsService {
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     });
+  }
+
+  async accessTechnician(code: string) {
+    const requestedCode = technicianCode(code);
+    const technicians = await this.prisma.chemicalTechnician.findMany({
+      where: { active: true },
+      select: { name: true, shareToken: true },
+    });
+    const technician = technicians.find(
+      (item) => technicianCode(item.name) === requestedCode,
+    );
+    if (!technician) {
+      throw new NotFoundException('Technician code not found.');
+    }
+    return {
+      name: technician.name,
+      technicianToken: technician.shareToken,
+    };
   }
 
   async resolveTechnician(shareToken: string) {

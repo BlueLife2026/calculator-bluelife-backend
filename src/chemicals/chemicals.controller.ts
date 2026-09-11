@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { ChemicalsService } from './chemicals.service';
+import { AccessChemicalTechnicianDto } from './dto/access-chemical-technician.dto';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
 
 @Controller('chemicals')
@@ -11,6 +12,11 @@ export class ChemicalsController {
   @Get('technicians')
   findTechnicians() {
     return this.chemicalsService.findTechnicians();
+  }
+
+  @Post('technicians/access')
+  accessTechnician(@Body() data: AccessChemicalTechnicianDto) {
+    return this.chemicalsService.accessTechnician(data.code);
   }
 
   @Get('technicians/:id/whatsapp')
