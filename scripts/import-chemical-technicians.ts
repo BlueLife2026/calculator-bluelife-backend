@@ -21,12 +21,12 @@ if (!csvArgument) {
 }
 
 const csvPath = path.resolve(csvArgument);
-const rows = parse(fs.readFileSync(csvPath), {
+const rows: CsvRow[] = parse(fs.readFileSync(csvPath), {
   bom: true,
   columns: true,
   skip_empty_lines: true,
   trim: true,
-}) as CsvRow[];
+});
 
 const technicians = rows
   .map((row) => ({
@@ -46,7 +46,9 @@ const duplicateNumbers = technicians.filter(
     ) !== index,
 );
 if (duplicateNames.length || duplicateNumbers.length) {
-  throw new Error('The CSV contains duplicate technician names or phone numbers.');
+  throw new Error(
+    'The CSV contains duplicate technician names or phone numbers.',
+  );
 }
 if (
   technicians.some(
@@ -67,14 +69,17 @@ if (!applyChanges) {
 }
 
 async function applyTechnicians() {
-  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
   try {
     await prisma.$transaction([
       prisma.chemicalTechnician.updateMany({ data: { active: false } }),
       ...technicians.map((technician) =>
         prisma.chemicalTechnician.upsert({
-          where: { name: technician.name },
+          where: { whatsappNumber: technician.whatsappNumber },
           update: {
+            name: technician.name,
             whatsappNumber: technician.whatsappNumber,
             active: true,
           },
@@ -82,7 +87,30 @@ async function applyTechnicians() {
         }),
       ),
     ]);
+    const activeTechnicians = await prisma.chemicalTechnician.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+      select: { name: true, whatsappNumber: true },
+    });
+    if (
+      activeTechnicians.length !== technicians.length ||
+      technicians.some(
+        (technician) =>
+          !activeTechnicians.some(
+            (activeTechnician) =>
+              activeTechnician.name === technician.name &&
+              activeTechnician.whatsappNumber === technician.whatsappNumber,
+          ),
+      )
+    ) {
+      throw new Error(
+        'The imported technician directory could not be verified.',
+      );
+    }
     console.log(`Imported technician records: ${technicians.length}`);
+    console.log(
+      `Verified active technician records: ${activeTechnicians.length}`,
+    );
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -42,6 +43,10 @@ export class CreateChemicalReportDto {
   @Max(100000)
   tabsQuantity: number;
 
+  @IsOptional()
+  @IsIn(['units', 'pounds'])
+  tabsUnit?: string;
+
   @Quantity()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
@@ -66,6 +71,10 @@ export class CreateChemicalReportDto {
   @Max(100000)
   dePowderBags: number;
 
+  @IsOptional()
+  @IsIn(['bags', 'scoops'])
+  dePowderUnit?: string;
+
   @Quantity()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
@@ -77,6 +86,10 @@ export class CreateChemicalReportDto {
   @Min(0)
   @Max(100000)
   stabilizerScoops: number;
+
+  @IsOptional()
+  @IsIn(['bags', 'scoops'])
+  stabilizerUnit?: string;
 
   @Quantity()
   @IsNumber({ maxDecimalPlaces: 2 })

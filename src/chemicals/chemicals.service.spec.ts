@@ -11,12 +11,15 @@ function reportData(): CreateChemicalReportDto {
     propertyId: '00000000-0000-4000-8000-000000000001',
     waterBodyId: '00000000-0000-4000-8000-000000000002',
     tabsQuantity: 1,
+    tabsUnit: 'pounds',
     liquidChlorineGallons: 2.5,
     muriaticAcidGallons: 0,
     shockScoops: 0,
     dePowderBags: 0,
+    dePowderUnit: 'scoops',
     bicarbonateScoops: 0,
     stabilizerScoops: 0,
+    stabilizerUnit: 'bags',
     saltBags: 0,
     phosphatesOunces: 0,
   };
@@ -72,7 +75,10 @@ describe('ChemicalsService', () => {
         propertyName: 'Example Property',
         waterBodyName: 'Main Pool',
         tabsQuantity: 1,
+        tabsUnit: 'pounds',
         liquidChlorineGallons: 2.5,
+        dePowderUnit: 'scoops',
+        stabilizerUnit: 'bags',
       }),
     });
   });
@@ -119,7 +125,7 @@ describe('ChemicalsService', () => {
   it('builds a private-token form link for the technician WhatsApp number', async () => {
     const shareToken = '00000000-0000-4000-8000-000000000004';
     findTechnician.mockResolvedValue({
-      name: 'Assigned Technician',
+      name: '01 Assigned Technician',
       whatsappNumber: '15551234567',
       shareToken,
     });
@@ -133,15 +139,16 @@ describe('ChemicalsService', () => {
 
     expect(whatsappUrl.pathname).toBe('/15551234567');
     expect(message).toContain(`technicianToken=${shareToken}`);
-    expect(message).not.toContain('Assigned%20Technician');
+    expect(message).toContain('Hola Assigned');
+    expect(message).not.toContain('Hola 01');
   });
 
   it('recognizes a technician name without depending on case or accents', async () => {
     const shareToken = '00000000-0000-4000-8000-000000000006';
-    findTechnicians.mockResolvedValue([{ name: 'Ángel Viña', shareToken }]);
+    findTechnicians.mockResolvedValue([{ name: '01 Ángel Viña', shareToken }]);
 
     await expect(service.accessTechnician('angel vina')).resolves.toEqual({
-      name: 'Ángel Viña',
+      name: '01 Ángel Viña',
       technicianToken: shareToken,
     });
   });

@@ -106,12 +106,15 @@ model ChemicalReport {
   waterBodyId              String?
   waterBodyName            String?
   tabsQuantity             Decimal   @default(0) @db.Decimal(12, 2)
+  tabsUnit                 String    @default("units")
   liquidChlorineGallons     Decimal   @default(0) @db.Decimal(12, 2)
   muriaticAcidGallons       Decimal   @default(0) @db.Decimal(12, 2)
   shockScoops               Decimal   @default(0) @db.Decimal(12, 2)
   dePowderBags              Decimal   @default(0) @db.Decimal(12, 2)
+  dePowderUnit              String    @default("bags")
   bicarbonateScoops         Decimal   @default(0) @db.Decimal(12, 2)
   stabilizerScoops          Decimal   @default(0) @db.Decimal(12, 2)
+  stabilizerUnit            String    @default("scoops")
   saltBags                  Decimal   @default(0) @db.Decimal(12, 2)
   phosphatesOunces          Decimal   @default(0) @db.Decimal(12, 2)
   notes                     String?

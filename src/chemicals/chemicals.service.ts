@@ -34,6 +34,21 @@ function technicianCode(value: string) {
     .toLowerCase();
 }
 
+function technicianCodeWithoutNumber(value: string) {
+  return technicianCode(value).replace(/^\d+/, '');
+}
+
+const chemicalUnitLabels: Record<string, string> = {
+  units: 'unidades',
+  pounds: 'libras',
+  bags: 'bolsas',
+  scoops: 'scoops',
+};
+
+function chemicalUnitLabel(value: string) {
+  return chemicalUnitLabels[value] ?? value;
+}
+
 function tokenHash(value: string) {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -82,7 +97,9 @@ export class ChemicalsService {
       select: { name: true, shareToken: true },
     });
     const technician = technicians.find(
-      (item) => technicianCode(item.name) === requestedCode,
+      (item) =>
+        technicianCode(item.name) === requestedCode ||
+        technicianCodeWithoutNumber(item.name) === requestedCode,
     );
     if (!technician) {
       throw new NotFoundException('Technician code not found.');
@@ -127,7 +144,7 @@ export class ChemicalsService {
     parsedFormUrl.searchParams.delete('technician');
     parsedFormUrl.searchParams.set('area', 'chemicals');
     parsedFormUrl.searchParams.set('technicianToken', technician.shareToken);
-    const firstName = technician.name.split(' ')[0];
+    const firstName = technician.name.replace(/^\d+\s+/, '').split(' ')[0];
     const message = `Hola ${firstName}, registra aquí las cantidades de químicos que retiraste de bodega: ${parsedFormUrl.toString()}`;
     const whatsappUrl = new URL(`https://wa.me/${technician.whatsappNumber}`);
     whatsappUrl.searchParams.set('text', message);
@@ -260,12 +277,15 @@ export class ChemicalsService {
         waterBodyId: waterBody?.id ?? null,
         waterBodyName: waterBody?.name ?? null,
         tabsQuantity: data.tabsQuantity,
+        tabsUnit: data.tabsUnit ?? 'units',
         liquidChlorineGallons: data.liquidChlorineGallons,
         muriaticAcidGallons: data.muriaticAcidGallons,
         shockScoops: data.shockScoops,
         dePowderBags: data.dePowderBags,
+        dePowderUnit: data.dePowderUnit ?? 'bags',
         bicarbonateScoops: data.bicarbonateScoops,
         stabilizerScoops: data.stabilizerScoops,
+        stabilizerUnit: data.stabilizerUnit ?? 'scoops',
         saltBags: data.saltBags,
         phosphatesOunces: data.phosphatesOunces,
         notes: data.notes?.trim() || null,
@@ -283,16 +303,19 @@ export class ChemicalsService {
       'Técnico',
       'Propiedad',
       'Cuerpo de agua',
-      'Tabs (Qty)',
+      'Tabletas (Cantidad)',
       'Liquid Chlorine (GAL)',
       'Muriatic Acid (Gal)',
       'Shock (Scoop)',
-      'DE Filter Powder (BAG)',
+      'DE Filter Powder (Cantidad)',
       'Bicarbonate (Scoop)',
-      'Estabilizador (scoop)',
+      'Estabilizador (Cantidad)',
       'SALT (BAG)',
       'Phosphates (oz)',
       'Notas',
+      'Unidad de tabletas',
+      'Unidad de polvo DE',
+      'Unidad de estabilizador',
     ];
     const escape = (value: unknown) =>
       `"${String(value ?? '').replaceAll('"', '""')}"`;
@@ -311,6 +334,9 @@ export class ChemicalsService {
       report.saltBags,
       report.phosphatesOunces,
       report.notes,
+      chemicalUnitLabel(report.tabsUnit),
+      chemicalUnitLabel(report.dePowderUnit),
+      chemicalUnitLabel(report.stabilizerUnit),
     ]);
 
     return `\uFEFF${[headers, ...rows]
