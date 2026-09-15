@@ -11,6 +11,7 @@ function reportData(): CreateChemicalReportDto {
     tabsQuantity: 1,
     tabsUnit: 'pounds',
     liquidChlorineGallons: 2.5,
+    chlorinePowderScoops: 0,
     muriaticAcidGallons: 0,
     shockScoops: 0,
     dePowderBags: 0,

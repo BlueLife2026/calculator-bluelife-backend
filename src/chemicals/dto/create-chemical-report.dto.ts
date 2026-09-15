@@ -49,6 +49,12 @@ export class CreateChemicalReportDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100000)
+  chlorinePowderScoops: number;
+
+  @Quantity()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100000)
   muriaticAcidGallons: number;
 
   @Quantity()
