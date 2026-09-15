@@ -13,6 +13,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
+import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dto';
 
 const quantityFields = [
   'tabsQuantity',
@@ -89,6 +90,33 @@ export class ChemicalsService {
       where: { active: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
+    });
+  }
+
+  async findTechnicianDirectory(authorization?: string) {
+    await this.ownerSession(authorization);
+    return this.prisma.chemicalTechnician.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, whatsappNumber: true, active: true },
+    });
+  }
+
+  async createTechnician(data: CreateChemicalTechnicianDto, authorization?: string) {
+    await this.ownerSession(authorization);
+    return this.prisma.chemicalTechnician.create({
+      data: {
+        name: data.name.trim(),
+        whatsappNumber: data.whatsappNumber.trim(),
+      },
+      select: { id: true, name: true, whatsappNumber: true, active: true },
+    });
+  }
+
+  async removeTechnician(id: string, authorization?: string) {
+    await this.ownerSession(authorization);
+    return this.prisma.chemicalTechnician.delete({
+      where: { id },
+      select: { id: true },
     });
   }
 

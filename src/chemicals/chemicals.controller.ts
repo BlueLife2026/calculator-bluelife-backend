@@ -16,6 +16,7 @@ import { ChemicalsService } from './chemicals.service';
 import { AccessChemicalOwnerDto } from './dto/access-chemical-owner.dto';
 import { AccessChemicalTechnicianDto } from './dto/access-chemical-technician.dto';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
+import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dto';
 
 @Controller('chemicals')
 export class ChemicalsController {
@@ -24,6 +25,27 @@ export class ChemicalsController {
   @Get('technicians')
   findTechnicians() {
     return this.chemicalsService.findTechnicians();
+  }
+
+  @Get('technicians/directory')
+  findTechnicianDirectory(@Headers('authorization') authorization?: string) {
+    return this.chemicalsService.findTechnicianDirectory(authorization);
+  }
+
+  @Post('technicians')
+  createTechnician(
+    @Body() data: CreateChemicalTechnicianDto,
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.chemicalsService.createTechnician(data, authorization);
+  }
+
+  @Delete('technicians/:id')
+  removeTechnician(
+    @Param('id') id: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.chemicalsService.removeTechnician(id, authorization);
   }
 
   @Post('technicians/access')
