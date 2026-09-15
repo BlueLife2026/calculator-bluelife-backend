@@ -88,7 +88,7 @@ export class CreateChemicalReportDto {
   stabilizerScoops: number;
 
   @IsOptional()
-  @IsIn(['bags', 'scoops'])
+  @IsIn(['bucket'])
   stabilizerUnit?: string;
 
   @Quantity()

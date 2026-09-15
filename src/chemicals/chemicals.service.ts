@@ -43,6 +43,7 @@ const chemicalUnitLabels: Record<string, string> = {
   pounds: 'libras',
   bags: 'bolsas',
   scoops: 'scoops',
+  bucket: 'Bucket',
 };
 
 function chemicalUnitLabel(value: string) {
@@ -285,7 +286,7 @@ export class ChemicalsService {
         dePowderUnit: data.dePowderUnit ?? 'bags',
         bicarbonateScoops: data.bicarbonateScoops,
         stabilizerScoops: data.stabilizerScoops,
-        stabilizerUnit: data.stabilizerUnit ?? 'scoops',
+        stabilizerUnit: data.stabilizerUnit ?? 'bucket',
         saltBags: data.saltBags,
         phosphatesOunces: data.phosphatesOunces,
         notes: data.notes?.trim() || null,
