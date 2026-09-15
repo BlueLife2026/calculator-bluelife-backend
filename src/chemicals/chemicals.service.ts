@@ -43,7 +43,7 @@ const chemicalUnitLabels: Record<string, string> = {
   pounds: 'libras',
   bags: 'bolsas',
   scoops: 'scoops',
-  bucket: 'Bucket',
+  bucket: 'bucket',
 };
 
 function chemicalUnitLabel(value: string) {
@@ -242,41 +242,10 @@ export class ChemicalsService {
       ? (await this.resolveTechnician(data.technicianToken)).name
       : data.technicianName.trim();
 
-    const property = data.propertyId
-      ? await this.prisma.property.findFirst({
-          where: { id: data.propertyId, deletedAt: null },
-          include: { waterBodies: true },
-        })
-      : null;
-
-    if (data.propertyId && !property) {
-      throw new NotFoundException('Property not found.');
-    }
-
-    if (data.waterBodyId && !property) {
-      throw new BadRequestException(
-        'A water body cannot be selected without a property.',
-      );
-    }
-
-    const waterBody = data.waterBodyId
-      ? property?.waterBodies.find((item) => item.id === data.waterBodyId)
-      : null;
-
-    if (data.waterBodyId && !waterBody) {
-      throw new BadRequestException(
-        'The selected water body does not belong to this property.',
-      );
-    }
-
     return this.prisma.chemicalReport.create({
       data: {
         serviceDate: new Date(`${data.serviceDate}T12:00:00.000Z`),
         technicianName,
-        propertyId: property?.id ?? null,
-        propertyName: property?.name ?? null,
-        waterBodyId: waterBody?.id ?? null,
-        waterBodyName: waterBody?.name ?? null,
         tabsQuantity: data.tabsQuantity,
         tabsUnit: data.tabsUnit ?? 'units',
         liquidChlorineGallons: data.liquidChlorineGallons,
@@ -302,8 +271,6 @@ export class ChemicalsService {
     const headers = [
       'Fecha',
       'Técnico',
-      'Propiedad',
-      'Cuerpo de agua',
       'Tabletas (Cantidad)',
       'Liquid Chlorine (GAL)',
       'Muriatic Acid (Gal)',
@@ -323,8 +290,6 @@ export class ChemicalsService {
     const rows = reports.map((report) => [
       report.serviceDate.toISOString().slice(0, 10),
       report.technicianName,
-      report.propertyName,
-      report.waterBodyName,
       report.tabsQuantity,
       report.liquidChlorineGallons,
       report.muriaticAcidGallons,

@@ -8,8 +8,6 @@ function reportData(): CreateChemicalReportDto {
   return {
     serviceDate: '2026-09-10',
     technicianName: 'Test Technician',
-    propertyId: '00000000-0000-4000-8000-000000000001',
-    waterBodyId: '00000000-0000-4000-8000-000000000002',
     tabsQuantity: 1,
     tabsUnit: 'pounds',
     liquidChlorineGallons: 2.5,
@@ -61,19 +59,12 @@ describe('ChemicalsService', () => {
     expect(findFirst).not.toHaveBeenCalled();
   });
 
-  it('stores property and water body snapshots with the quantities', async () => {
+  it('stores chemical quantities without property or water body data', async () => {
     const data = reportData();
-    findFirst.mockResolvedValue({
-      id: data.propertyId,
-      name: 'Example Property',
-      waterBodies: [{ id: data.waterBodyId, name: 'Main Pool' }],
-    });
     await service.create(data);
 
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        propertyName: 'Example Property',
-        waterBodyName: 'Main Pool',
         tabsQuantity: 1,
         tabsUnit: 'pounds',
         liquidChlorineGallons: 2.5,
@@ -83,20 +74,14 @@ describe('ChemicalsService', () => {
     });
   });
 
-  it('stores a warehouse withdrawal without property data', async () => {
+  it('stores a warehouse withdrawal', async () => {
     const data = reportData();
-    delete data.propertyId;
-    delete data.waterBodyId;
     await service.create(data);
 
     expect(findFirst).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         technicianName: 'Test Technician',
-        propertyId: null,
-        propertyName: null,
-        waterBodyId: null,
-        waterBodyName: null,
         tabsQuantity: 1,
       }),
     });
@@ -107,12 +92,6 @@ describe('ChemicalsService', () => {
     data.technicianName = 'Incorrect Technician';
     data.technicianToken = '00000000-0000-4000-8000-000000000003';
     findTechnician.mockResolvedValue({ name: 'Assigned Technician' });
-    findFirst.mockResolvedValue({
-      id: data.propertyId,
-      name: 'Example Property',
-      waterBodies: [{ id: data.waterBodyId, name: 'Main Pool' }],
-    });
-
     await service.create(data);
 
     expect(create).toHaveBeenCalledWith({

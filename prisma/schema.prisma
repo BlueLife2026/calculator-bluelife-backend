@@ -40,7 +40,6 @@ model Property {
   contacts            PropertyContact[]
   waterBodies         WaterBody[]
   salesActivities     SalesActivity[]
-  chemicalReports     ChemicalReport[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   legacySource        String?
@@ -91,8 +90,6 @@ model WaterBody {
   active     Boolean @default(true)
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  chemicalReports ChemicalReport[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -101,10 +98,6 @@ model ChemicalReport {
   id                       String    @id @default(uuid())
   serviceDate              DateTime  @db.Date
   technicianName           String
-  propertyId               String?
-  propertyName             String?
-  waterBodyId              String?
-  waterBodyName            String?
   tabsQuantity             Decimal   @default(0) @db.Decimal(12, 2)
   tabsUnit                 String    @default("units")
   liquidChlorineGallons     Decimal   @default(0) @db.Decimal(12, 2)
@@ -114,7 +107,7 @@ model ChemicalReport {
   dePowderUnit              String    @default("bags")
   bicarbonateScoops         Decimal   @default(0) @db.Decimal(12, 2)
   stabilizerScoops          Decimal   @default(0) @db.Decimal(12, 2)
-  stabilizerUnit            String    @default("scoops")
+  stabilizerUnit            String    @default("bucket")
   saltBags                  Decimal   @default(0) @db.Decimal(12, 2)
   phosphatesOunces          Decimal   @default(0) @db.Decimal(12, 2)
   notes                     String?
@@ -127,12 +120,8 @@ model ChemicalReport {
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
-  property  Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  waterBody WaterBody? @relation(fields: [waterBodyId], references: [id], onDelete: SetNull)
-
   @@index([serviceDate])
   @@index([technicianName, serviceDate])
-  @@index([propertyId, serviceDate])
 }
 
 model ChemicalTechnician {

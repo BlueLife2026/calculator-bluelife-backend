@@ -29,14 +29,6 @@ export class CreateChemicalReportDto {
   @IsUUID()
   technicianToken?: string;
 
-  @IsOptional()
-  @IsUUID()
-  propertyId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  waterBodyId?: string;
-
   @Quantity()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
