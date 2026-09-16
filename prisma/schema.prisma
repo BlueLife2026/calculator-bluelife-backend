@@ -194,3 +194,23 @@ model ProposalFollowUp {
 
   @@index([salesActivityId, occurredAt])
 }
+
+model HealthTicket {
+  id                String   @id @default(uuid())
+  ticketNumber      String   @unique
+  outlookMessageId  String   @unique
+  subject           String
+  propertyName      String?
+  senderEmail       String?
+  receivedAt        DateTime
+  visitDate         DateTime?
+  priority          String   @default("MEDIUM")
+  status            String   @default("NEW")
+  estimateStatus    String   @default("PENDING")
+  bodyPreview       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([visitDate])
+}
