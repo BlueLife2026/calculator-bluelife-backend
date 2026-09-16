@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MicrosoftGraphService } from '../microsoft-graph/microsoft-graph.service';
@@ -15,12 +15,29 @@ type GraphMessage = {
 type GraphMessageResponse = { value: GraphMessage[]; '@odata.nextLink'?: string };
 
 @Injectable()
-export class HealthDepartmentService {
+export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
+  private syncTimer?: ReturnType<typeof setInterval>;
   constructor(
     private readonly prisma: PrismaService,
     private readonly graph: MicrosoftGraphService,
     private readonly config: ConfigService,
   ) {}
+
+  onModuleInit() {
+    // Polling keeps the workflow automatic even before a public Graph webhook URL is configured.
+    void this.syncOutlook().catch((error: unknown) => {
+      console.error('Initial Health Department Outlook sync failed', error);
+    });
+    this.syncTimer = setInterval(() => {
+      void this.syncOutlook().catch((error: unknown) => {
+        console.error('Health Department Outlook sync failed', error);
+      });
+    }, 5 * 60 * 1000);
+  }
+
+  onModuleDestroy() {
+    if (this.syncTimer) clearInterval(this.syncTimer);
+  }
 
   async listTickets() {
     return this.prisma.healthTicket.findMany({ orderBy: { receivedAt: 'desc' } });
