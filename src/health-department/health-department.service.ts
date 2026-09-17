@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MicrosoftGraphService } from '../microsoft-graph/microsoft-graph.service';
+import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 
 type GraphMessage = {
   id: string;
@@ -41,6 +42,10 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
 
   async listTickets() {
     return this.prisma.healthTicket.findMany({ orderBy: { receivedAt: 'desc' } });
+  }
+
+  async updateTicket(ticketNumber: string, data: UpdateHealthTicketDto) {
+    return this.prisma.healthTicket.update({ where: { ticketNumber }, data: { ...data, visitDate: data.visitDate ? new Date(data.visitDate) : undefined } });
   }
 
   async syncOutlook() {
