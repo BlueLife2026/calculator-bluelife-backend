@@ -1,9 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
 
 const csvPath = process.argv[2] || 'C:\\Users\\Xime\\Downloads\\Health Department..csv';
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
 
 function parseCsv(text) {
   const rows = [];
