@@ -68,6 +68,11 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   }
 
   async deleteTicket(ticketNumber: string, authorization?: string) {
+    await this.requireAdmin(authorization);
+    return this.prisma.healthTicket.update({ where: { ticketNumber, deletedAt: null }, data: { deletedAt: new Date() }, select: { ticketNumber: true } });
+  }
+
+  async requireAdmin(authorization?: string) {
     const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) throw new UnauthorizedException('Admin login required.');
     const owner = await this.prisma.chemicalOwnerSession.findUnique({ where: { tokenHash: createHash('sha256').update(token).digest('hex') }, include: { owner: true } });
@@ -82,7 +87,6 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
       } catch { valid = false; }
     }
     if (!valid) throw new UnauthorizedException('Admin session expired or invalid.');
-    return this.prisma.healthTicket.update({ where: { ticketNumber, deletedAt: null }, data: { deletedAt: new Date() }, select: { ticketNumber: true } });
   }
 
   async login(email: string, password: string) {

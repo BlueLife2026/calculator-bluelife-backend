@@ -215,10 +215,27 @@ model HealthTicket {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   comments          HealthTicketComment[]
+  reminders         HealthInspectionReminder[]
 
   @@index([status])
   @@index([visitDate])
   @@index([conversationId])
+}
+
+model HealthInspectionReminder {
+  id             String @id @default(uuid())
+  ticketId       String
+  inspectionDate String
+  daysBefore     Int
+  recipient      String
+  status         String @default("SUBMITTING")
+  attemptedAt    DateTime @default(now())
+  acceptedAt     DateTime?
+  error          String?
+  ticket         HealthTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, inspectionDate, daysBefore])
+  @@index([status])
 }
 
 model HealthAdmin {
