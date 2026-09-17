@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MicrosoftGraphService } from '../microsoft-graph/microsoft-graph.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
+import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
 
 type GraphMessage = {
   id: string;
@@ -41,7 +42,17 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   }
 
   async listTickets() {
-    return this.prisma.healthTicket.findMany({ orderBy: { receivedAt: 'desc' } });
+    return this.prisma.healthTicket.findMany({ include: { comments: { orderBy: { createdAt: 'asc' } } }, orderBy: { receivedAt: 'desc' } });
+  }
+
+  async listComments(ticketNumber: string) {
+    const ticket = await this.prisma.healthTicket.findUniqueOrThrow({ where: { ticketNumber } });
+    return this.prisma.healthTicketComment.findMany({ where: { ticketId: ticket.id }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async createComment(ticketNumber: string, data: CreateHealthTicketCommentDto) {
+    const ticket = await this.prisma.healthTicket.findUniqueOrThrow({ where: { ticketNumber } });
+    return this.prisma.healthTicketComment.create({ data: { ticketId: ticket.id, author: data.author.trim(), body: data.body.trim() } });
   }
 
   async updateTicket(ticketNumber: string, data: UpdateHealthTicketDto) {
