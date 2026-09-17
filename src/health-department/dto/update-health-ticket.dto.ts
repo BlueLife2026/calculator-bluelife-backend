@@ -2,6 +2,10 @@ import { IsDateString, IsOptional, IsIn, IsString, MaxLength, IsObject } from 'c
 
 export class UpdateHealthTicketDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  subject?: string;
+  @IsOptional()
   @IsDateString()
   visitDate?: string;
 
