@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
 import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dto';
 import { UpdateChemicalTechnicianDto } from './dto/update-chemical-technician.dto';
+import { UpdateChemicalReportDto } from './dto/update-chemical-report.dto';
 
 const quantityFields = [
   'tabsQuantity',
@@ -313,6 +314,14 @@ export class ChemicalsService {
       },
       select: { id: true },
     });
+  }
+
+  async update(id: string, data: UpdateChemicalReportDto, authorization?: string) {
+    await this.ownerSession(authorization);
+    const report = await this.prisma.chemicalReport.findFirst({ where: { id, deletedAt: null } });
+    if (!report) throw new NotFoundException('Chemical report not found.');
+    const quantities = Object.fromEntries(quantityFields.map((key) => [key, data[key] ?? 0]));
+    return this.prisma.chemicalReport.update({ where: { id }, data: { serviceDate: new Date(`${data.serviceDate}T12:00:00.000Z`), technicianName: data.technicianName.trim(), tabsUnit: data.tabsUnit ?? 'units', dePowderUnit: data.dePowderUnit ?? 'bags', stabilizerUnit: data.stabilizerUnit ?? 'bucket', ...quantities }, });
   }
 
   async create(data: CreateChemicalReportDto) {

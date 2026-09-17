@@ -17,6 +17,7 @@ import { ChemicalsService } from './chemicals.service';
 import { AccessChemicalOwnerDto } from './dto/access-chemical-owner.dto';
 import { AccessChemicalTechnicianDto } from './dto/access-chemical-technician.dto';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
+import { UpdateChemicalReportDto } from './dto/update-chemical-report.dto';
 import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dto';
 import { UpdateChemicalTechnicianDto } from './dto/update-chemical-technician.dto';
 
@@ -110,6 +111,11 @@ export class ChemicalsController {
   @Post('reports')
   create(@Body() data: CreateChemicalReportDto) {
     return this.chemicalsService.create(data);
+  }
+
+  @Patch('reports/:id')
+  update(@Param('id') id: string, @Body() data: UpdateChemicalReportDto, @Headers('authorization') authorization?: string) {
+    return this.chemicalsService.update(id, data, authorization);
   }
 
   @Delete('reports/:id')
