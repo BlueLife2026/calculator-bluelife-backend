@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from '@nestjs/common';
 import { HealthDepartmentService } from './health-department.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
@@ -17,10 +17,16 @@ export class HealthDepartmentController {
     return this.health.syncOutlook();
   }
 
+  @Post('tickets')
+  createTicket(@Body() data: UpdateHealthTicketDto) { return this.health.createTicket(data); }
+
   @Patch('tickets/:id')
   updateTicket(@Param('id') id: string, @Body() data: UpdateHealthTicketDto) {
     return this.health.updateTicket(id, data);
   }
+
+  @Delete('tickets/:id')
+  deleteTicket(@Param('id') id: string, @Headers('authorization') authorization?: string, @Headers('x-health-email') email?: string, @Headers('x-health-password') password?: string) { return this.health.deleteTicket(id, authorization, email, password); }
 
   @Get('tickets/:id/comments')
   listComments(@Param('id') id: string) {

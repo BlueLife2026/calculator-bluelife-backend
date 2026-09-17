@@ -1,9 +1,10 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MicrosoftGraphService } from '../microsoft-graph/microsoft-graph.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
+import { createHash } from 'crypto';
 
 type GraphMessage = {
   id: string;
@@ -59,6 +60,14 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   async updateTicket(ticketNumber: string, data: UpdateHealthTicketDto) {
     return this.prisma.healthTicket.update({ where: { ticketNumber }, data: { ...data, visitDate: data.visitDate ? new Date(data.visitDate) : undefined } });
   }
+
+  async createTicket(data: UpdateHealthTicketDto) {
+    const count = await this.prisma.healthTicket.count();
+    const property = data.propertyName?.trim() || null;
+    return this.prisma.healthTicket.create({ data: { ticketNumber: `HD-MAN-${String(count + 1).padStart(4, '0')}`, outlookMessageId: `manual-${Date.now()}`, subject: data.subject?.trim() || 'Health Department request', propertyName: property, receivedAt: new Date(), visitDate: data.visitDate ? new Date(data.visitDate) : null, status: data.status || 'NEW', estimateStatus: data.estimateStatus || 'PENDING', estimateNumber: data.estimateNumber || null, healthData: data.healthData || (property ? { Propiedad: property } : {}) } });
+  }
+
+  async deleteTicket(ticketNumber: string, authorization?: string, email?: string, password?: string) { const token = authorization?.replace(/^Bearer\s+/i, '').trim(); const owner = token ? await this.prisma.chemicalOwnerSession.findUnique({ where: { tokenHash: createHash('sha256').update(token).digest('hex') } }) : null; const serviceEmail = this.config.get('HEALTH_ADMIN_EMAIL')?.trim().toLowerCase() || 'service@bluelifepools.com'; const servicePassword = this.config.get('HEALTH_ADMIN_PASSWORD') || ''; if (!owner && (email?.trim().toLowerCase() !== serviceEmail || !servicePassword || password !== servicePassword)) throw new UnauthorizedException('Health Department admin login required.'); return this.prisma.healthTicket.delete({ where: { ticketNumber }, select: { ticketNumber: true } }); }
 
   async syncOutlook() {
     const mailbox = this.config.get('MICROSOFT_MAILBOX_USER')?.trim() || 'service@bluelifepools.com';
