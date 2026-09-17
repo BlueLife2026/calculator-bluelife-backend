@@ -6,6 +6,11 @@ export class UpdateHealthTicketDto {
   visitDate?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  propertyName?: string;
+
+  @IsOptional()
   @IsIn(['NEW', 'IN_PROGRESS', 'CLOSED'])
   status?: string;
 
