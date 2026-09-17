@@ -2,10 +2,19 @@ import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from '@nes
 import { HealthDepartmentService } from './health-department.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+
+class HealthLoginDto {
+  @IsEmail() email!: string;
+  @IsString() @MinLength(1) @MaxLength(200) password!: string;
+}
 
 @Controller('health-department')
 export class HealthDepartmentController {
   constructor(private readonly health: HealthDepartmentService) {}
+
+  @Post('login')
+  login(@Body() data: HealthLoginDto) { return this.health.login(data.email, data.password); }
 
   @Get('tickets')
   listTickets() {
@@ -26,7 +35,7 @@ export class HealthDepartmentController {
   }
 
   @Delete('tickets/:id')
-  deleteTicket(@Param('id') id: string, @Headers('authorization') authorization?: string, @Headers('x-health-email') email?: string, @Headers('x-health-password') password?: string) { return this.health.deleteTicket(id, authorization, email, password); }
+  deleteTicket(@Param('id') id: string, @Headers('authorization') authorization?: string) { return this.health.deleteTicket(id, authorization); }
 
   @Get('tickets/:id/comments')
   listComments(@Param('id') id: string) {

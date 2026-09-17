@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MicrosoftGraphService } from '../microsoft-graph/microsoft-graph.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
-import { createHash } from 'crypto';
+import { createHash, createHmac, randomUUID, scryptSync, timingSafeEqual } from 'crypto';
 
 type GraphMessage = {
   id: string;
@@ -44,7 +44,7 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   }
 
   async listTickets() {
-    return this.prisma.healthTicket.findMany({ include: { comments: { orderBy: { createdAt: 'asc' } } }, orderBy: { receivedAt: 'desc' } });
+    return this.prisma.healthTicket.findMany({ where: { deletedAt: null }, include: { comments: { orderBy: { createdAt: 'asc' } } }, orderBy: { receivedAt: 'desc' } });
   }
 
   async listComments(ticketNumber: string) {
@@ -58,16 +58,47 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   }
 
   async updateTicket(ticketNumber: string, data: UpdateHealthTicketDto) {
-    return this.prisma.healthTicket.update({ where: { ticketNumber }, data: { ...data, visitDate: data.visitDate ? new Date(data.visitDate) : undefined } });
+    return this.prisma.healthTicket.update({ where: { ticketNumber, deletedAt: null }, data: { ...data, visitDate: data.visitDate === undefined ? undefined : data.visitDate ? new Date(data.visitDate) : null } });
   }
 
   async createTicket(data: UpdateHealthTicketDto) {
-    const count = await this.prisma.healthTicket.count();
+    const code = randomUUID();
     const property = data.propertyName?.trim() || null;
-    return this.prisma.healthTicket.create({ data: { ticketNumber: `HD-MAN-${String(count + 1).padStart(4, '0')}`, outlookMessageId: `manual-${Date.now()}`, subject: data.subject?.trim() || 'Health Department request', propertyName: property, receivedAt: new Date(), visitDate: data.visitDate ? new Date(data.visitDate) : null, status: data.status || 'NEW', estimateStatus: data.estimateStatus || 'PENDING', estimateNumber: data.estimateNumber || null, healthData: data.healthData || (property ? { Propiedad: property } : {}) } });
+    return this.prisma.healthTicket.create({ data: { ticketNumber: `HD-MAN-${code}`, outlookMessageId: `manual-${code}`, subject: data.subject?.trim() || 'Health Department request', propertyName: property, receivedAt: new Date(), visitDate: data.visitDate ? new Date(data.visitDate) : null, status: data.status || 'NEW', estimateStatus: data.estimateStatus || 'PENDING', estimateNumber: data.estimateNumber || null, healthData: data.healthData || (property ? { Propiedad: property } : {}) } });
   }
 
-  async deleteTicket(ticketNumber: string, authorization?: string, email?: string, password?: string) { const token = authorization?.replace(/^Bearer\s+/i, '').trim(); const owner = token ? await this.prisma.chemicalOwnerSession.findUnique({ where: { tokenHash: createHash('sha256').update(token).digest('hex') } }) : null; const serviceEmail = this.config.get('HEALTH_ADMIN_EMAIL')?.trim().toLowerCase() || 'service@bluelifepools.com'; const servicePassword = this.config.get('HEALTH_ADMIN_PASSWORD') || ''; if (!owner && (email?.trim().toLowerCase() !== serviceEmail || !servicePassword || password !== servicePassword)) throw new UnauthorizedException('Health Department admin login required.'); return this.prisma.healthTicket.delete({ where: { ticketNumber }, select: { ticketNumber: true } }); }
+  async deleteTicket(ticketNumber: string, authorization?: string) {
+    const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!token) throw new UnauthorizedException('Admin login required.');
+    const owner = await this.prisma.chemicalOwnerSession.findUnique({ where: { tokenHash: createHash('sha256').update(token).digest('hex') }, include: { owner: true } });
+    let valid = !!owner && owner.expiresAt > new Date() && owner.owner.active;
+    if (!valid) {
+      const [payload, signature] = token.split('.');
+      try {
+        const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
+        const admin = await this.prisma.healthAdmin.findUnique({ where: { email: claims.email } });
+        const expected = admin ? createHmac('sha256', admin.passwordHash).update(payload).digest('base64url') : '';
+        valid = !!expected && typeof signature === 'string' && expected.length === signature.length && timingSafeEqual(Buffer.from(expected), Buffer.from(signature)) && claims.exp > Date.now();
+      } catch { valid = false; }
+    }
+    if (!valid) throw new UnauthorizedException('Admin session expired or invalid.');
+    return this.prisma.healthTicket.update({ where: { ticketNumber, deletedAt: null }, data: { deletedAt: new Date() }, select: { ticketNumber: true } });
+  }
+
+  async login(email: string, password: string) {
+    const admin = await this.prisma.healthAdmin.findUnique({ where: { email: email.trim().toLowerCase() } });
+    let valid = false;
+    if (admin) {
+      try {
+        const [algorithm, salt, hash] = admin.passwordHash.split('$');
+        const expected = Buffer.from(hash, 'hex');
+        valid = algorithm === 'scrypt' && expected.length === 64 && timingSafeEqual(expected, scryptSync(password, Buffer.from(salt, 'hex'), 64));
+      } catch { valid = false; }
+    }
+    if (!admin || !valid) throw new UnauthorizedException('Invalid credentials.');
+    const payload = Buffer.from(JSON.stringify({ email: admin.email, exp: Date.now() + 86400000 })).toString('base64url');
+    return { token: `${payload}.${createHmac('sha256', admin.passwordHash).update(payload).digest('base64url')}` };
+  }
 
   async syncOutlook() {
     const mailbox = this.config.get('MICROSOFT_MAILBOX_USER')?.trim() || 'service@bluelifepools.com';

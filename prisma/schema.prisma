@@ -211,6 +211,7 @@ model HealthTicket {
   estimateNumber    String?
   bodyPreview       String?
   healthData        Json?
+  deletedAt         DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   comments          HealthTicketComment[]
@@ -218,6 +219,12 @@ model HealthTicket {
   @@index([status])
   @@index([visitDate])
   @@index([conversationId])
+}
+
+model HealthAdmin {
+  id           String @id @default(uuid())
+  email        String @unique
+  passwordHash String
 }
 
 model HealthTicketComment {
