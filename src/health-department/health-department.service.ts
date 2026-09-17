@@ -49,7 +49,7 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
     const filter = encodeURIComponent(`categories/any(c:c eq '${category}')`);
     const select = encodeURIComponent('id,subject,bodyPreview,receivedDateTime,from,categories');
     const response = await this.graph.request<GraphMessageResponse>(
-      `/users/${encodeURIComponent(mailbox)}/mailFolders/inbox/messages?$filter=${filter}&$select=${select}&$top=50`,
+      `/users/${encodeURIComponent(mailbox)}/messages?$filter=${filter}&$select=${select}&$top=50`,
     );
     let created = 0;
     for (const message of response.value ?? []) {
