@@ -13,4 +13,8 @@ export class UpdateHealthTicketDto {
   @IsString()
   @MaxLength(80)
   estimateNumber?: string;
+
+  @IsOptional()
+  @IsIn(['PENDING', 'REQUIRED', 'NOT_REQUIRED'])
+  estimateStatus?: string;
 }
