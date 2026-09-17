@@ -7,6 +7,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Patch,
   Query,
   Res,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { AccessChemicalOwnerDto } from './dto/access-chemical-owner.dto';
 import { AccessChemicalTechnicianDto } from './dto/access-chemical-technician.dto';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
 import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dto';
+import { UpdateChemicalTechnicianDto } from './dto/update-chemical-technician.dto';
 
 @Controller('chemicals')
 export class ChemicalsController {
@@ -46,6 +48,11 @@ export class ChemicalsController {
     @Headers('authorization') authorization?: string,
   ) {
     return this.chemicalsService.removeTechnician(id, authorization);
+  }
+
+  @Patch('technicians/:id')
+  updateTechnician(@Param('id') id: string, @Body() data: UpdateChemicalTechnicianDto, @Headers('authorization') authorization?: string) {
+    return this.chemicalsService.updateTechnician(id, data, authorization);
   }
 
   @Post('technicians/access')

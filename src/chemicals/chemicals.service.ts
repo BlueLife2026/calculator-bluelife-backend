@@ -10,10 +10,12 @@ import {
   scryptSync,
   timingSafeEqual,
 } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChemicalReportDto } from './dto/create-chemical-report.dto';
 import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dto';
+import { UpdateChemicalTechnicianDto } from './dto/update-chemical-technician.dto';
 
 const quantityFields = [
   'tabsQuantity',
@@ -38,6 +40,54 @@ function technicianCode(value: string) {
 
 function technicianCodeWithoutNumber(value: string) {
   return technicianCode(value).replace(/^\d+/, '');
+}
+
+function reportDuplicateKey(report: {
+  serviceDate: Date | string;
+  technicianName: string;
+  tabsQuantity: unknown;
+  tabsUnit: string;
+  liquidChlorineGallons: unknown;
+  chlorinePowderScoops: unknown;
+  muriaticAcidGallons: unknown;
+  shockScoops: unknown;
+  dePowderBags: unknown;
+  dePowderUnit: string;
+  bicarbonateScoops: unknown;
+  stabilizerScoops: unknown;
+  stabilizerUnit: string;
+  saltBags: unknown;
+  phosphatesOunces: unknown;
+  notes?: string | null;
+}) {
+  const date = report.serviceDate instanceof Date
+    ? report.serviceDate.toISOString().slice(0, 10)
+    : report.serviceDate.slice(0, 10);
+  const technician = report.technicianName
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+  const quantity = (value: unknown) => Number(value) || 0;
+  return JSON.stringify([
+    date,
+    technician,
+    quantity(report.tabsQuantity),
+    report.tabsUnit,
+    quantity(report.liquidChlorineGallons),
+    quantity(report.chlorinePowderScoops),
+    quantity(report.muriaticAcidGallons),
+    quantity(report.shockScoops),
+    quantity(report.dePowderBags),
+    report.dePowderUnit,
+    quantity(report.bicarbonateScoops),
+    quantity(report.stabilizerScoops),
+    report.stabilizerUnit,
+    quantity(report.saltBags),
+    quantity(report.phosphatesOunces),
+    report.notes?.trim() || null,
+  ]);
 }
 
 const chemicalUnitLabels: Record<string, string> = {
@@ -118,6 +168,11 @@ export class ChemicalsService {
       where: { id },
       select: { id: true },
     });
+  }
+
+  async updateTechnician(id: string, data: UpdateChemicalTechnicianDto, authorization?: string) {
+    await this.ownerSession(authorization);
+    return this.prisma.chemicalTechnician.update({ where: { id }, data: { name: data.name.trim(), whatsappNumber: data.whatsappNumber.trim() }, select: { id: true, name: true, whatsappNumber: true, active: true } });
   }
 
   async accessTechnician(code: string) {
@@ -270,10 +325,33 @@ export class ChemicalsService {
     const technicianName = data.technicianToken
       ? (await this.resolveTechnician(data.technicianToken)).name
       : data.technicianName.trim();
+    const serviceDate = new Date(`${data.serviceDate}T12:00:00.000Z`);
+    const existingReports = await this.prisma.chemicalReport.findMany({
+      where: {
+        serviceDate,
+        technicianName,
+        deletedAt: null,
+      },
+    });
+    const reportKey = reportDuplicateKey({
+      ...data,
+      serviceDate,
+      technicianName,
+      tabsUnit: data.tabsUnit ?? 'units',
+      dePowderUnit: data.dePowderUnit ?? 'bags',
+      stabilizerUnit: data.stabilizerUnit ?? 'bucket',
+      notes: data.notes,
+    });
+    if (existingReports.some((report) => reportDuplicateKey(report) === reportKey)) {
+      throw new BadRequestException(
+        'Este registro ya fue guardado anteriormente para ese técnico y fecha.',
+      );
+    }
 
-    return this.prisma.chemicalReport.create({
-      data: {
-        serviceDate: new Date(`${data.serviceDate}T12:00:00.000Z`),
+    try {
+      return await this.prisma.chemicalReport.create({
+        data: {
+          serviceDate,
         technicianName,
         tabsQuantity: data.tabsQuantity,
         tabsUnit: data.tabsUnit ?? 'units',
@@ -289,8 +367,16 @@ export class ChemicalsService {
         saltBags: data.saltBags,
         phosphatesOunces: data.phosphatesOunces,
         notes: data.notes?.trim() || null,
-      },
-    });
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new BadRequestException(
+          'Este técnico ya tiene un registro guardado para esa fecha.',
+        );
+      }
+      throw error;
+    }
   }
 
   async exportCsv() {
@@ -318,7 +404,12 @@ export class ChemicalsService {
     ];
     const escape = (value: unknown) =>
       `"${String(value ?? '').replaceAll('"', '""')}"`;
-    const rows = reports.map((report) => [
+    const uniqueReports = reports.filter((report, index, allReports) =>
+      allReports.findIndex((candidate) =>
+        reportDuplicateKey(candidate) === reportDuplicateKey(report),
+      ) === index,
+    );
+    const rows = uniqueReports.map((report) => [
       report.serviceDate.toISOString().slice(0, 10),
       report.technicianName,
       report.tabsQuantity,
