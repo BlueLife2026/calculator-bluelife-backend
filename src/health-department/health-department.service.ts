@@ -9,6 +9,7 @@ type GraphMessage = {
   id: string;
   subject?: string;
   bodyPreview?: string;
+  conversationId?: string;
   receivedDateTime: string;
   from?: { emailAddress?: { address?: string } };
   categories?: string[];
@@ -63,18 +64,19 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
     const mailbox = this.config.get('MICROSOFT_MAILBOX_USER')?.trim() || 'service@bluelifepools.com';
     const category = this.config.get('MICROSOFT_HEALTH_CATEGORY')?.trim() || 'Health department';
     const filter = encodeURIComponent(`categories/any(c:c eq '${category}')`);
-    const select = encodeURIComponent('id,subject,bodyPreview,receivedDateTime,from,categories');
+    const select = encodeURIComponent('id,conversationId,subject,bodyPreview,receivedDateTime,from,categories');
     const response = await this.graph.request<GraphMessageResponse>(
       `/users/${encodeURIComponent(mailbox)}/messages?$filter=${filter}&$select=${select}&$top=50`,
     );
     let created = 0;
     for (const message of response.value ?? []) {
-      const exists = await this.prisma.healthTicket.findUnique({ where: { outlookMessageId: message.id } });
+      const exists = await this.prisma.healthTicket.findFirst({ where: { OR: [{ outlookMessageId: message.id }, ...(message.conversationId ? [{ conversationId: message.conversationId }] : [])] } });
       if (exists) continue;
       await this.prisma.healthTicket.create({
         data: {
           ticketNumber: `HD-${Date.now().toString().slice(-7)}${created}`,
           outlookMessageId: message.id,
+          conversationId: message.conversationId ?? null,
           subject: message.subject?.trim() || 'Health Department request',
           senderEmail: message.from?.emailAddress?.address ?? null,
           receivedAt: new Date(message.receivedDateTime),
