@@ -45,7 +45,7 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
 
   async syncOutlook() {
     const mailbox = this.config.get('MICROSOFT_MAILBOX_USER')?.trim() || 'service@bluelifepools.com';
-    const category = this.config.get('MICROSOFT_HEALTH_CATEGORY')?.trim() || 'Health deparment';
+    const category = this.config.get('MICROSOFT_HEALTH_CATEGORY')?.trim() || 'Health department';
     const filter = encodeURIComponent(`categories/any(c:c eq '${category}')`);
     const select = encodeURIComponent('id,subject,bodyPreview,receivedDateTime,from,categories');
     const response = await this.graph.request<GraphMessageResponse>(
@@ -73,7 +73,7 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   async integrationStatus() {
     return {
       mailbox: this.config.get('MICROSOFT_MAILBOX_USER')?.trim() || 'service@bluelifepools.com',
-      category: this.config.get('MICROSOFT_HEALTH_CATEGORY')?.trim() || 'Health deparment',
+      category: this.config.get('MICROSOFT_HEALTH_CATEGORY')?.trim() || 'Health department',
       configured: Boolean(this.config.get('MICROSOFT_TENANT_ID') && this.config.get('MICROSOFT_CLIENT_ID') && this.config.get('MICROSOFT_CLIENT_SECRET')),
     };
   }
