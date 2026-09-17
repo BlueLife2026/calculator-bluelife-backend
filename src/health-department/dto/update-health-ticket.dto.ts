@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsIn } from 'class-validator';
+import { IsDateString, IsOptional, IsIn, IsString, MaxLength } from 'class-validator';
 
 export class UpdateHealthTicketDto {
   @IsOptional()
@@ -8,4 +8,9 @@ export class UpdateHealthTicketDto {
   @IsOptional()
   @IsIn(['NEW', 'IN_PROGRESS', 'CLOSED'])
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  estimateNumber?: string;
 }

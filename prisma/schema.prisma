@@ -207,6 +207,7 @@ model HealthTicket {
   priority          String   @default("MEDIUM")
   status            String   @default("NEW")
   estimateStatus    String   @default("PENDING")
+  estimateNumber    String?
   bodyPreview       String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
