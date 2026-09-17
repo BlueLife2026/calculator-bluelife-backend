@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from '@nes
 import { HealthDepartmentService } from './health-department.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
-import { InspectionRemindersService } from './inspection-reminders.service';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
 class HealthLoginDto {
@@ -12,19 +11,7 @@ class HealthLoginDto {
 
 @Controller('health-department')
 export class HealthDepartmentController {
-  constructor(private readonly health: HealthDepartmentService, private readonly reminders: InspectionRemindersService) {}
-
-  @Get('reminders/cron')
-  remindersCron(@Headers('authorization') authorization?: string) { return this.reminders.cron(authorization); }
-
-  @Get('reminders/status')
-  remindersStatus() { return this.reminders.configuration(); }
-
-  @Post('reminders/run')
-  async runReminders(@Headers('authorization') authorization?: string) {
-    await this.health.requireAdmin(authorization);
-    return this.reminders.run();
-  }
+  constructor(private readonly health: HealthDepartmentService) {}
 
   @Post('login')
   login(@Body() data: HealthLoginDto) { return this.health.login(data.email, data.password); }

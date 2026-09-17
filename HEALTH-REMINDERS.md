@@ -1,5 +1,7 @@
 # Health inspection email reminders
 
+DISABLED: replaced at the user's request with in-platform traffic-light alerts in Upcoming inspections (red 0–2 days, yellow 3–5 days, green 6–10 days). Email endpoints and the Vercel cron have been removed. The code and audit table below are retained only for reference; the activation instructions below no longer apply to the active application.
+
 Recipient and sender: service@bluelifepools.com. Messages and ticket labels are in English.
 The Vercel production cron runs daily at 13:00 UTC (08:00 America/Bogota).
 On Hobby plans the actual invocation can occur later within that hour.
