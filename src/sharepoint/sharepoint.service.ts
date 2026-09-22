@@ -185,6 +185,70 @@ export class SharePointService {
     return folder;
   }
 
+  async ensureReportsFolder(propertyFolderId: string) {
+    const [folder] = await this.ensureWaterBodyFolders(propertyFolderId, [
+      'Reportes',
+    ]);
+    if (!folder) {
+      throw new Error('The Reportes folder could not be created.');
+    }
+    return folder;
+  }
+
+  async createReportUploadSession(
+    propertyFolderId: string,
+    incidentId: string,
+    originalFileName: string,
+  ) {
+    const { driveId } = await this.resolveDrive();
+    const reportsFolder = await this.ensureReportsFolder(propertyFolderId);
+    const safeFileName = this.sanitizeFolderName(
+      originalFileName.split(/[\\/]/).pop() ?? '',
+      'attachment',
+    );
+    const uploadFileName = `${incidentId.slice(0, 8)}-${Date.now()}-${safeFileName}`;
+    const session = await this.graph<{
+      uploadUrl: string;
+      expirationDateTime: string;
+    }>(
+      `/drives/${driveId}/items/${reportsFolder.id}:/${encodeURIComponent(uploadFileName)}:/createUploadSession`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          item: { '@microsoft.graph.conflictBehavior': 'rename' },
+        }),
+      },
+    );
+    return { ...session, uploadFileName };
+  }
+
+  async uploadReportChunk(
+    uploadUrl: string,
+    content: Buffer,
+    start: number,
+    total: number,
+  ) {
+    const end = start + content.length - 1;
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Length': String(content.length),
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+      },
+      body: content as unknown as BodyInit,
+    });
+    if (response.status === 202) return { complete: false as const };
+    if (!response.ok) {
+      throw new Error(
+        `Microsoft Graph chunk upload failed (${response.status})`,
+      );
+    }
+    return {
+      complete: true as const,
+      item: (await response.json()) as GraphFolder,
+    };
+  }
+
   private async uploadFile(
     folderId: string,
     fileName: string,
@@ -222,12 +286,7 @@ export class SharePointService {
       'photo',
     );
     const uploadName = `${Date.now()}-${safeFileName}`;
-    return this.uploadFile(
-      waterBodyFolderId,
-      uploadName,
-      content,
-      contentType,
-    );
+    return this.uploadFile(waterBodyFolderId, uploadName, content, contentType);
   }
 
   async uploadProposalPdf(

@@ -1,7 +1,16 @@
-import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateReportIncidentDto {
   @IsDateString() occurredAt!: string;
+  @IsOptional() @IsUUID() propertyId?: string | null;
   @IsString() @MaxLength(160) propertyName!: string;
   @IsUUID() typeId!: string;
   @IsIn(['HIGH', 'MEDIUM', 'LOW']) importance!: string;
@@ -14,6 +23,7 @@ export class CreateReportIncidentDto {
 
 export class UpdateReportIncidentDto {
   @IsOptional() @IsDateString() occurredAt?: string;
+  @IsOptional() @IsUUID() propertyId?: string | null;
   @IsOptional() @IsString() @MaxLength(160) propertyName?: string;
   @IsOptional() @IsUUID() typeId?: string;
   @IsOptional() @IsIn(['HIGH', 'MEDIUM', 'LOW']) importance?: string;
