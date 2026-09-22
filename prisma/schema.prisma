@@ -254,3 +254,58 @@ model HealthTicketComment {
 
   @@index([ticketId, createdAt])
 }
+
+model ReportPerson {
+  id                    String           @id @default(uuid())
+  name                  String
+  role                  String
+  active                Boolean          @default(true)
+  color                 String?
+  defaultSupervisorId   String?
+  defaultSupervisor     ReportPerson?    @relation("ReportSupervisorAssignments", fields: [defaultSupervisorId], references: [id], onDelete: SetNull)
+  supervisedTechnicians ReportPerson[]   @relation("ReportSupervisorAssignments")
+  technicianIncidents   ReportIncident[] @relation("ReportIncidentTechnician")
+  supervisorIncidents   ReportIncident[] @relation("ReportIncidentSupervisor")
+  inspectorIncidents    ReportIncident[] @relation("ReportIncidentInspector")
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@unique([role, name])
+  @@index([role, active])
+}
+
+model ReportIncidentType {
+  id        String           @id @default(uuid())
+  name      String           @unique
+  color     String?
+  active    Boolean          @default(true)
+  incidents ReportIncident[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model ReportIncident {
+  id                String             @id @default(uuid())
+  occurredAt        DateTime           @db.Date
+  propertyName      String
+  typeId            String
+  type              ReportIncidentType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  importance        String             @default("MEDIUM")
+  description       String
+  technicianId      String
+  technician        ReportPerson       @relation("ReportIncidentTechnician", fields: [technicianId], references: [id], onDelete: Restrict)
+  supervisorId      String
+  supervisor        ReportPerson       @relation("ReportIncidentSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict)
+  requiresInspector Boolean            @default(false)
+  inspectorId       String?
+  inspector         ReportPerson?      @relation("ReportIncidentInspector", fields: [inspectorId], references: [id], onDelete: SetNull)
+  status            String             @default("PENDING")
+  resolution        String?
+  solvedAt          DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([occurredAt])
+  @@index([status, occurredAt])
+  @@index([propertyName])
+}

@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
 import { ChemicalsModule } from './chemicals/chemicals.module';
 import { HealthDepartmentModule } from './health-department/health-department.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { HealthDepartmentModule } from './health-department/health-department.mo
     PropertiesModule,
     ChemicalsModule,
     HealthDepartmentModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
