@@ -305,6 +305,8 @@ model ReportIncident {
   status            String             @default("PENDING")
   resolution        String?
   solvedAt          DateTime?
+  requiresEstimate  Boolean            @default(false)
+  estimateNumber    String?
   attachments       ReportAttachment[]
   uploadSessions    ReportUploadSession[]
   createdAt         DateTime           @default(now())

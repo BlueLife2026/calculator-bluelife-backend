@@ -142,6 +142,12 @@ export class ReportsService {
       throw new BadRequestException(
         'Describe what was done before solving the report.',
       );
+    const requiresEstimate = data.requiresEstimate ?? current.requiresEstimate;
+    const estimateNumber = data.estimateNumber?.trim() || (data.estimateNumber === '' ? null : current.estimateNumber);
+    if (status === 'SOLVED' && requiresEstimate && !estimateNumber)
+      throw new BadRequestException(
+        'Enter the estimate number when an estimate is required.',
+      );
     return this.prisma.reportIncident.update({
       where: { id },
       data: {
@@ -161,10 +167,14 @@ export class ReportsService {
         resolution,
         solvedAt:
           data.status === 'SOLVED'
-            ? new Date()
+            ? data.solvedAt
+              ? new Date(`${data.solvedAt}T00:00:00.000Z`)
+              : new Date()
             : data.status === 'PENDING'
               ? null
               : undefined,
+        requiresEstimate: status === 'SOLVED' ? requiresEstimate : undefined,
+        estimateNumber: status === 'SOLVED' ? estimateNumber : undefined,
       },
       include: this.include,
     });

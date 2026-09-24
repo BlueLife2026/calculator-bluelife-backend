@@ -34,4 +34,7 @@ export class UpdateReportIncidentDto {
   @IsOptional() @IsUUID() inspectorId?: string;
   @IsOptional() @IsIn(['PENDING', 'SOLVED']) status?: string;
   @IsOptional() @IsString() @MaxLength(4000) resolution?: string;
+  @IsOptional() @IsDateString() solvedAt?: string;
+  @IsOptional() @IsBoolean() requiresEstimate?: boolean;
+  @IsOptional() @IsString() @MaxLength(120) estimateNumber?: string;
 }
