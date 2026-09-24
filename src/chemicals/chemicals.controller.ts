@@ -12,6 +12,7 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { ChemicalsService } from './chemicals.service';
 import { AccessChemicalOwnerDto } from './dto/access-chemical-owner.dto';
@@ -22,6 +23,7 @@ import { CreateChemicalTechnicianDto } from './dto/create-chemical-technician.dt
 import { UpdateChemicalTechnicianDto } from './dto/update-chemical-technician.dto';
 
 @Controller('chemicals')
+@ApiTags('Chemicals')
 export class ChemicalsController {
   constructor(private readonly chemicalsService: ChemicalsService) {}
 
@@ -31,11 +33,13 @@ export class ChemicalsController {
   }
 
   @Get('technicians/directory')
+  @ApiBearerAuth('bearer')
   findTechnicianDirectory(@Headers('authorization') authorization?: string) {
     return this.chemicalsService.findTechnicianDirectory(authorization);
   }
 
   @Post('technicians')
+  @ApiBearerAuth('bearer')
   createTechnician(
     @Body() data: CreateChemicalTechnicianDto,
     @Headers('authorization') authorization?: string,
@@ -44,6 +48,7 @@ export class ChemicalsController {
   }
 
   @Delete('technicians/:id')
+  @ApiBearerAuth('bearer')
   removeTechnician(
     @Param('id') id: string,
     @Headers('authorization') authorization?: string,
@@ -52,7 +57,12 @@ export class ChemicalsController {
   }
 
   @Patch('technicians/:id')
-  updateTechnician(@Param('id') id: string, @Body() data: UpdateChemicalTechnicianDto, @Headers('authorization') authorization?: string) {
+  @ApiBearerAuth('bearer')
+  updateTechnician(
+    @Param('id') id: string,
+    @Body() data: UpdateChemicalTechnicianDto,
+    @Headers('authorization') authorization?: string,
+  ) {
     return this.chemicalsService.updateTechnician(id, data, authorization);
   }
 
@@ -88,11 +98,13 @@ export class ChemicalsController {
   }
 
   @Get('owner/session')
+  @ApiBearerAuth('bearer')
   ownerSession(@Headers('authorization') authorization?: string) {
     return this.chemicalsService.ownerSession(authorization);
   }
 
   @Post('owner/logout')
+  @ApiBearerAuth('bearer')
   @HttpCode(204)
   async logoutOwner(@Headers('authorization') authorization?: string) {
     await this.chemicalsService.logoutOwner(authorization);
@@ -114,11 +126,17 @@ export class ChemicalsController {
   }
 
   @Patch('reports/:id')
-  update(@Param('id') id: string, @Body() data: UpdateChemicalReportDto, @Headers('authorization') authorization?: string) {
+  @ApiBearerAuth('bearer')
+  update(
+    @Param('id') id: string,
+    @Body() data: UpdateChemicalReportDto,
+    @Headers('authorization') authorization?: string,
+  ) {
     return this.chemicalsService.update(id, data, authorization);
   }
 
   @Delete('reports/:id')
+  @ApiBearerAuth('bearer')
   remove(
     @Param('id') id: string,
     @Headers('authorization') authorization?: string,

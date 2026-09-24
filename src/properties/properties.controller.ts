@@ -10,6 +10,7 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import { PropertiesService } from './properties.service';
@@ -22,6 +23,7 @@ import { UpdateSalesActivityDto } from './dto/update-sales-activity.dto';
 import { CreateProposalEmailDraftDto } from './dto/create-proposal-email-draft.dto';
 
 @Controller('properties')
+@ApiTags('Properties')
 export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
 
@@ -56,6 +58,14 @@ export class PropertiesController {
   }
 
   @Post(':propertyId/water-bodies/:waterBodyId/photos')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 8 * 1024 * 1024 },
@@ -96,6 +106,19 @@ export class PropertiesController {
   }
 
   @Post(':propertyId/sales-activities/:activityId/email-draft')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['recipientEmail', 'subject', 'body', 'file'],
+      properties: {
+        recipientEmail: { type: 'string', format: 'email' },
+        subject: { type: 'string' },
+        body: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 20 * 1024 * 1024 },
@@ -130,6 +153,14 @@ export class PropertiesController {
   }
 
   @Post(':propertyId/sales-activities/:activityId/pdf')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 20 * 1024 * 1024 },

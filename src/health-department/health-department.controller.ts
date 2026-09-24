@@ -1,20 +1,33 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { HealthDepartmentService } from './health-department.service';
 import { UpdateHealthTicketDto } from './dto/update-health-ticket.dto';
 import { CreateHealthTicketCommentDto } from './dto/create-health-ticket-comment.dto';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-class HealthLoginDto {
+export class HealthLoginDto {
   @IsEmail() email!: string;
   @IsString() @MinLength(1) @MaxLength(200) password!: string;
 }
 
 @Controller('health-department')
+@ApiTags('Health Department')
 export class HealthDepartmentController {
   constructor(private readonly health: HealthDepartmentService) {}
 
   @Post('login')
-  login(@Body() data: HealthLoginDto) { return this.health.login(data.email, data.password); }
+  login(@Body() data: HealthLoginDto) {
+    return this.health.login(data.email, data.password);
+  }
 
   @Get('tickets')
   listTickets() {
@@ -27,7 +40,9 @@ export class HealthDepartmentController {
   }
 
   @Post('tickets')
-  createTicket(@Body() data: UpdateHealthTicketDto) { return this.health.createTicket(data); }
+  createTicket(@Body() data: UpdateHealthTicketDto) {
+    return this.health.createTicket(data);
+  }
 
   @Patch('tickets/:id')
   updateTicket(@Param('id') id: string, @Body() data: UpdateHealthTicketDto) {
@@ -35,7 +50,13 @@ export class HealthDepartmentController {
   }
 
   @Delete('tickets/:id')
-  deleteTicket(@Param('id') id: string, @Headers('authorization') authorization?: string) { return this.health.deleteTicket(id, authorization); }
+  @ApiBearerAuth('bearer')
+  deleteTicket(
+    @Param('id') id: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.health.deleteTicket(id, authorization);
+  }
 
   @Get('tickets/:id/comments')
   listComments(@Param('id') id: string) {
@@ -43,7 +64,10 @@ export class HealthDepartmentController {
   }
 
   @Post('tickets/:id/comments')
-  createComment(@Param('id') id: string, @Body() data: CreateHealthTicketCommentDto) {
+  createComment(
+    @Param('id') id: string,
+    @Body() data: CreateHealthTicketCommentDto,
+  ) {
     return this.health.createComment(id, data);
   }
 
