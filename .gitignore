@@ -57,6 +57,12 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
 
+# Swagger local (se regenera con npm run docs)
+/api-docs-local/index.html
+/api-docs-local/openapi.json
+/api-docs-local/swagger-ui*.css
+/api-docs-local/swagger-ui*.js
+
 # datos reales de clientes - no versionar
 *.csv
 
