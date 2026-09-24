@@ -28,6 +28,7 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
+    if (this.config.get('MICROSOFT_HEALTH_AUTO_SYNC')?.trim().toLowerCase() !== 'true') return;
     // Polling keeps the workflow automatic even before a public Graph webhook URL is configured.
     void this.syncOutlook().catch((error: unknown) => {
       console.error('Initial Health Department Outlook sync failed', error);
@@ -137,6 +138,7 @@ export class HealthDepartmentService implements OnModuleInit, OnModuleDestroy {
       mailbox: this.config.get('MICROSOFT_MAILBOX_USER')?.trim() || 'service@bluelifepools.com',
       category: this.config.get('MICROSOFT_HEALTH_CATEGORY')?.trim() || 'Health department',
       configured: Boolean(this.config.get('MICROSOFT_TENANT_ID') && this.config.get('MICROSOFT_CLIENT_ID') && this.config.get('MICROSOFT_CLIENT_SECRET')),
+      autoSync: this.config.get('MICROSOFT_HEALTH_AUTO_SYNC')?.trim().toLowerCase() === 'true',
     };
   }
 }
